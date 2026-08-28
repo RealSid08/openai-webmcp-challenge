@@ -1,0 +1,47 @@
+{
+  "plugin": "devpost-hackathon",
+  "version": 2,
+  "hackathon": {
+    "slug": "webmcp",
+    "name": "The WebMCP Challenge",
+    "url": "https://webmcp.devpost.com",
+    "selected": true,
+    "source": "known"
+  },
+  "participant": {
+    "name": "",
+    "display_name": "Sidhaarth Krishnan"
+  },
+  "project": {
+    "name": "HS: Heist",
+    "summary": "A first-person heist where the human and a required WebMCP agent share two infiltrators, switch bodies, survive a bomb breach and authored chase, then turn real failures into inspectable evidence-backed partner memory.",
+    "ai_usage": "OpenAI Codex was the primary builder. Raw Cursor CLI with Claude Opus 5 High and Grok 4.6 High was used for bounded visual passes; Cursor MCP was not used.",
+    "codex_usage": "Codex led product shaping, current-doc research, architecture, implementation, integration, debugging, automated browser verification, strict code-quality review, and release documentation."
+  },
+  "current_stage": "resources",
+  "completed_stages": [
+    "start-hackathon",
+    "review",
+    "resources"
+  ],
+  "rules_acknowledged": true,
+  "learning": {
+    "status": "completed",
+    "current_step": "build",
+    "completed_steps": [
+      "onboard",
+      "scope",
+      "prd",
+      "spec",
+      "checklist",
+      "build"
+    ],
+    "plan_file": "docs/hackathon-build/spec.md",
+    "checklist_file": "docs/hackathon-build/checklist.md"
+  },
+  "submission": {
+    "draft_file": "devpost-submission.md",
+    "status": "not-started"
+  },
+  "next_command": "prepare-submission"
+}

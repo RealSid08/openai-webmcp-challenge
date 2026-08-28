@@ -1,0 +1,142 @@
+/*
+ * Restrained signal motion.
+ * Every animation here is decorative. Reduced-motion users get the same
+ * composition with the final frame held, never a hidden or empty layout.
+ */
+
+@keyframes grain-drift {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  25% {
+    transform: translate3d(-2%, 1%, 0);
+  }
+  50% {
+    transform: translate3d(1%, -2%, 0);
+  }
+  75% {
+    transform: translate3d(-1%, -1%, 0);
+  }
+  100% {
+    transform: translate3d(2%, 1%, 0);
+  }
+}
+
+@keyframes scan-sweep {
+  0% {
+    transform: translateY(-40vh);
+  }
+  100% {
+    transform: translateY(115vh);
+  }
+}
+
+/* Cold fluorescent tube: mostly stable with two brief unstable moments. */
+@keyframes lamp-flicker {
+  0%,
+  46%,
+  52%,
+  88%,
+  100% {
+    opacity: 1;
+  }
+  48% {
+    opacity: 0.32;
+  }
+  50% {
+    opacity: 0.86;
+  }
+  90% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes standby-pulse {
+  0%,
+  100% {
+    opacity: 0.28;
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 12px 1px currentcolor;
+  }
+}
+
+@keyframes hazard-crawl {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 56px 0;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rule-extend {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Entrance choreography: the room settles before the copy arrives. */
+.m-rise {
+  animation: rise-in 620ms var(--ease-out) both;
+}
+
+.m-rise-1 {
+  animation-delay: 60ms;
+}
+
+.m-rise-2 {
+  animation-delay: 150ms;
+}
+
+.m-rise-3 {
+  animation-delay: 240ms;
+}
+
+.m-rise-4 {
+  animation-delay: 330ms;
+}
+
+.m-rule {
+  transform-origin: left center;
+  animation: rule-extend 780ms var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+
+  .fx--grain {
+    animation: none;
+  }
+
+  /* Replace the travelling sweep with a static top-lit wash. */
+  .fx--scan {
+    inset: 0 0 auto 0;
+    height: 46vh;
+    opacity: 0.34;
+    animation: none;
+    transform: none;
+  }
+}

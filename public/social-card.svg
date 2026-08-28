@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#10181a"/><stop offset="1" stop-color="#030405"/>
+    </linearGradient>
+    <pattern id="p" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0v32" fill="none" stroke="#aec4c2" stroke-opacity=".06"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#g)"/>
+  <rect width="1200" height="630" fill="url(#p)"/>
+  <path d="M0 505h1200v125H0z" fill="#d58b3a" fill-opacity=".08"/>
+  <text x="88" y="112" fill="#d58b3a" font-family="monospace" font-size="24" letter-spacing="8">REALSID GAMES PRESENTS</text>
+  <text x="80" y="402" fill="#edf3f0" font-family="Arial Narrow, sans-serif" font-weight="900" font-size="260" letter-spacing="-18">HS</text>
+  <text x="475" y="392" fill="#edf3f0" font-family="monospace" font-size="58" letter-spacing="20">HEIST</text>
+  <text x="88" y="548" fill="#9db0ad" font-family="monospace" font-size="25" letter-spacing="3">SWITCH BODIES. SHARE RISK. REMEMBER THE FAILURE.</text>
+</svg>

@@ -1,0 +1,585 @@
+/* Pairing screen: the locked operations bay the player waits in. */
+
+.pair {
+  position: relative;
+  z-index: var(--z-content);
+  display: grid;
+
+  /*
+   * The explicit column matters: the rails are `nowrap`, so an implicit `auto`
+   * track would inflate to their min-content width and clip narrow windows.
+   */
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: var(--rail-h) minmax(0, 1fr) var(--rail-h);
+  height: 100%;
+}
+
+/* ----------------------------------------------------------------- rails */
+
+.pair__rail {
+  display: flex;
+  gap: clamp(1rem, 2.4vw, 2.5rem);
+  align-items: center;
+  min-width: 0;
+  padding-inline: var(--gutter);
+  overflow: hidden;
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.24em;
+  color: var(--fog-faint);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.pair__rail--top {
+  border-bottom: 1px solid var(--bone-a12);
+}
+
+.pair__rail--bottom {
+  border-top: 1px solid var(--bone-a12);
+}
+
+.pair__mark {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--fog);
+  letter-spacing: 0.3em;
+  text-overflow: ellipsis;
+}
+
+.pair__mark b {
+  font-weight: 400;
+  color: var(--amber);
+}
+
+.pair__rail-spacer {
+  flex: 1;
+}
+
+/* Least important rail items drop out before the layout gets cramped. */
+.pair__rail-item--optional {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ----------------------------------------------------------------- stage */
+
+.pair__stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 19rem);
+  gap: clamp(1.75rem, 4vw, 4.5rem);
+  align-items: end;
+  min-height: 0;
+  padding: clamp(1.25rem, 4vh, 3rem) var(--gutter);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/*
+ * Key-art composition: the copy sits low in frame and the empty upper third
+ * stays as lit facility volume rather than being padded out with widgets.
+ */
+.pair__brief {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: clamp(0.8rem, 1.7vh, 1.4rem);
+  min-width: 0;
+  max-width: 52rem;
+  padding-bottom: clamp(0.5rem, 5vh, 3.25rem);
+}
+
+.pair__eyebrow {
+  display: flex;
+  gap: 0.9rem;
+  align-items: center;
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.34em;
+  color: var(--fog-dim);
+  text-transform: uppercase;
+}
+
+.pair__eyebrow::after {
+  flex: 1;
+  height: 1px;
+  content: '';
+  background: linear-gradient(90deg, var(--bone-a20), transparent);
+}
+
+/* ----------------------------------------------------------- link status */
+
+/*
+ * The hero uses negative leading, so its glyphs overshoot the line box.
+ * This gap is sized to clear that overshoot, not just to look airy.
+ */
+.pair__status {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.pair__link {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  font-family: var(--font-stencil);
+  font-size: var(--step-sm);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.pair__dot {
+  flex: none;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: currentcolor;
+}
+
+.pair__link--standby {
+  color: var(--amber);
+}
+
+.pair__link--standby .pair__dot {
+  animation: standby-pulse 2.6s var(--ease-signal) infinite;
+}
+
+.pair__link--online {
+  color: var(--cyan);
+}
+
+.pair__link--online .pair__dot {
+  box-shadow: 0 0 12px 1px currentcolor;
+}
+
+/* -------------------------------------------------------------- headline */
+
+.pair__headline {
+  font-family: var(--font-display);
+  font-size: var(--step-hero);
+  font-weight: 700;
+  font-stretch: 75%;
+  line-height: 0.84;
+  color: var(--bone);
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+  text-shadow: 0 0 60px rgb(85 216 222 / 12%);
+}
+
+.pair__headline--online {
+  color: var(--ice);
+  text-shadow: 0 0 70px rgb(85 216 222 / 34%);
+}
+
+.pair__underline {
+  width: min(28rem, 100%);
+  height: 2px;
+  background: linear-gradient(90deg, var(--cyan) 0%, var(--cyan-deep) 42%, transparent 100%);
+}
+
+.pair__instruction {
+  max-width: 54ch;
+  font-size: var(--step-md);
+  color: var(--fog);
+}
+
+.pair__instruction b {
+  font-weight: 600;
+  color: var(--bone);
+}
+
+/* ------------------------------------------------------------------ crew */
+
+.pair__crew {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 41rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.crew {
+  --accent: var(--fog-dim);
+
+  display: grid;
+  grid-template-columns: 3.1rem minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--bone-a12);
+  border-left: 2px solid var(--accent);
+  background: linear-gradient(90deg, var(--steel-800) 0%, rgb(16 24 25 / 0%) 88%);
+}
+
+.crew--owen {
+  --accent: var(--cyan);
+}
+
+.crew--cody {
+  --accent: var(--amber);
+}
+
+.crew__tag {
+  display: grid;
+  place-items: center;
+  height: 1.85rem;
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  background: rgb(237 243 240 / 4%);
+  border: 1px solid var(--accent);
+  opacity: 0.85;
+}
+
+.crew__id {
+  display: grid;
+  min-width: 0;
+}
+
+.crew__name {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--bone);
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.crew__role {
+  display: block;
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.16em;
+  color: var(--fog-dim);
+  text-transform: uppercase;
+}
+
+.crew__state {
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.18em;
+  color: var(--fog-dim);
+  text-transform: uppercase;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--bone-a12);
+}
+
+.crew__state--live {
+  color: var(--cyan);
+  border-color: var(--cyan-a32);
+  background: var(--cyan-a08);
+}
+
+/* --------------------------------------------------------------- actions */
+
+.pair__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  align-items: center;
+  margin-top: 0.25rem;
+}
+
+.btn {
+  position: relative;
+  display: inline-flex;
+  gap: 0.65rem;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.9rem;
+  padding: 0 1.4rem;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  border: 1px solid var(--bone-a20);
+  transition:
+    color var(--dur-fast) var(--ease-signal),
+    border-color var(--dur-fast) var(--ease-signal),
+    background-color var(--dur-fast) var(--ease-signal);
+}
+
+/* Corner ticks instead of a clipped shape, so focus rings stay intact. */
+.btn::before,
+.btn::after {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  content: '';
+  border: 1px solid currentcolor;
+  opacity: 0.5;
+}
+
+.btn::before {
+  top: 3px;
+  left: 3px;
+  border-width: 1px 0 0 1px;
+}
+
+.btn::after {
+  right: 3px;
+  bottom: 3px;
+  border-width: 0 1px 1px 0;
+}
+
+.btn--primary {
+  color: var(--black);
+  background: var(--cyan);
+  border-color: var(--cyan);
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: var(--cyan-soft);
+  border-color: var(--cyan-soft);
+}
+
+.btn--primary:active:not(:disabled) {
+  background: var(--cyan-deep);
+  color: var(--cyan-soft);
+}
+
+/* Locked start control: hazard hatching, not a greyed-out ghost. */
+.btn--primary:disabled {
+  color: var(--fog-faint);
+  background-color: var(--steel-800);
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--amber-a10) 0 8px,
+    transparent 8px 16px
+  );
+  border-color: var(--bone-a12);
+}
+
+.btn--ghost {
+  color: var(--fog);
+  background: transparent;
+}
+
+.btn--ghost:hover {
+  color: var(--bone);
+  border-color: var(--cyan-a32);
+  background: var(--cyan-a08);
+}
+
+.btn__icon {
+  flex: none;
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.pair__locknote {
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.16em;
+  color: var(--amber);
+  text-transform: uppercase;
+}
+
+.pair__locknote::before {
+  flex: none;
+  width: 1.25rem;
+  height: 1px;
+  content: '';
+  background: var(--amber-a24);
+}
+
+/* ----------------------------------------------------------------- plate */
+
+/*
+ * Set dressing: a stencilled blast-door bay lit by one cold practical.
+ * Hidden from assistive tech because it carries atmosphere, not information.
+ */
+/* Bottom-aligned with the copy so both sit on the same implied floor line. */
+.pair__plate {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 1rem;
+  height: min(30rem, 58vh);
+  margin-bottom: clamp(0.5rem, 5vh, 3.25rem);
+  padding: 1.1rem 1.6rem 1.3rem;
+  overflow: hidden;
+  border: 1px solid var(--bone-a12);
+  background:
+    linear-gradient(180deg, var(--steel-700) 0%, var(--steel-900) 42%, var(--black) 100%),
+    var(--black);
+}
+
+.pair__plate::before,
+.pair__plate::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 14px;
+  content: '';
+  background-image: radial-gradient(circle at 7px 7px, var(--steel-500) 0 2px, transparent 2px);
+  background-repeat: repeat-y;
+  background-size: 14px 34px;
+  opacity: 0.75;
+}
+
+.pair__plate::before {
+  left: 3px;
+}
+
+.pair__plate::after {
+  right: 3px;
+}
+
+.plate__lamp {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  box-shadow: 0 0 24px 3px var(--cyan-a32);
+  animation: lamp-flicker 7.5s var(--ease-signal) infinite;
+}
+
+/* Panel joint, so the slab reads as a blast door rather than a container. */
+.plate__seam {
+  position: absolute;
+  inset: 58% 0 auto 0;
+  height: 2px;
+  background: linear-gradient(180deg, rgb(2 3 4 / 90%) 0 1px, var(--bone-a06) 1px);
+}
+
+.plate__label {
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.3em;
+  color: var(--fog-faint);
+  text-transform: uppercase;
+}
+
+.plate__stencil {
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-size: clamp(4.5rem, 8vw, 7.5rem);
+  font-weight: 700;
+  line-height: 0.8;
+  color: var(--steel-600);
+  letter-spacing: 0.02em;
+}
+
+@supports (-webkit-text-stroke: 1px currentcolor) {
+  .plate__stencil {
+    color: transparent;
+    -webkit-text-stroke: 2px var(--steel-400);
+  }
+}
+
+.plate__foot {
+  display: grid;
+  gap: 0.6rem;
+  align-content: end;
+}
+
+.plate__hazard {
+  height: 10px;
+  background-color: var(--rust-700);
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--amber) 0 14px,
+    transparent 14px 28px
+  );
+  opacity: 0.45;
+  animation: hazard-crawl 6s linear infinite;
+}
+
+.plate__caption {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.18em;
+  color: var(--amber);
+  text-transform: uppercase;
+}
+
+.plate__strobe {
+  flex: none;
+  width: 0.4rem;
+  height: 0.4rem;
+  background: currentcolor;
+  animation: standby-pulse 1.9s steps(2, end) infinite;
+}
+
+/* ------------------------------------------------------------ responsive */
+
+/*
+ * Below this width the plate has nowhere to live without stealing the measure
+ * from the copy, so the set dressing falls back to the atmosphere layers.
+ */
+@media (max-width: 1080px) {
+  .pair__stage {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: end;
+  }
+
+  .pair__plate {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  :root {
+    --rail-h: 2.25rem;
+  }
+
+  .pair__rail-item--optional {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .btn {
+    padding: 0 1.1rem;
+    letter-spacing: 0.12em;
+  }
+
+  /* Basis wider than the column, so each control takes its own row. */
+  .pair__actions .btn {
+    flex: 1 1 14rem;
+  }
+}
+
+/* Short windows: stop the hero from pushing the actions off screen. */
+@media (max-height: 620px) {
+  .pair__stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pair__headline {
+    font-size: clamp(2rem, 5.5vw, 3.5rem);
+  }
+
+  .pair__plate {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pair__link--standby .pair__dot,
+  .plate__strobe {
+    opacity: 1;
+    animation: none;
+  }
+
+  .plate__lamp,
+  .plate__hazard {
+    animation: none;
+  }
+}

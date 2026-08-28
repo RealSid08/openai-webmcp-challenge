@@ -1,0 +1,252 @@
+/* ------------------------------------------------ character switch cut */
+
+.switchcut {
+  position: fixed;
+  z-index: 6;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.65rem;
+  overflow: hidden;
+  color: var(--bone);
+  text-align: center;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 54%, rgb(76 185 195 / 18%) 0 7%, transparent 28%),
+    radial-gradient(circle at 50% 50%, rgb(1 4 5 / 38%) 0 22%, rgb(1 3 4 / 88%) 72%);
+  animation: switchcut-arrive 1.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.switchcut::before,
+.switchcut::after {
+  position: absolute;
+  inset: 50% -20%;
+  display: block;
+  height: 1px;
+  content: '';
+  background: linear-gradient(90deg, transparent 15%, var(--cyan) 50%, transparent 85%);
+  box-shadow: 0 0 2.8rem rgb(85 216 222 / 68%);
+  transform-origin: center;
+  animation: switchcut-axis 1.8s var(--ease-out) both;
+}
+
+.switchcut::after {
+  opacity: 0.32;
+  transform: rotate(90deg);
+}
+
+.switchcut__eyebrow,
+.switchcut__destination {
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+
+.switchcut__eyebrow {
+  color: var(--cyan);
+}
+
+.switchcut__route {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: clamp(1rem, 3vw, 2rem);
+  align-items: center;
+  font-family: var(--font-display);
+  font-size: clamp(2.8rem, 9vw, 7.5rem);
+  line-height: 0.8;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 2rem rgb(85 216 222 / 22%);
+}
+
+.switchcut__route strong:first-child {
+  color: var(--fog-dim);
+}
+
+.switchcut__route strong:last-child {
+  color: var(--bone);
+}
+
+.switchcut__route i {
+  width: clamp(2.8rem, 7vw, 7rem);
+  height: 2px;
+  background: linear-gradient(90deg, var(--bone-a12), var(--cyan));
+  box-shadow: 0 0 1rem rgb(85 216 222 / 55%);
+}
+
+.switchcut__destination {
+  color: var(--fog);
+}
+
+@keyframes switchcut-arrive {
+  0% {
+    opacity: 0;
+    transform: scale(1.18);
+    filter: blur(12px);
+  }
+
+  22%,
+  72% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(0.72);
+    filter: blur(8px);
+  }
+}
+
+@keyframes switchcut-axis {
+  0% {
+    opacity: 0;
+    scale: 0 1;
+  }
+
+  26%,
+  72% {
+    opacity: 0.55;
+    scale: 1 1;
+  }
+
+  100% {
+    opacity: 0;
+    scale: 1 1;
+  }
+}
+
+/* -------------------------------------------------------- compatibility */
+
+.compat {
+  position: relative;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: clamp(1rem, 5vh, 3rem) var(--gutter);
+}
+
+.compat__card {
+  display: grid;
+  gap: 0.6rem;
+  width: min(34rem, 100%);
+  padding: clamp(1.1rem, 4vw, 1.9rem);
+  border: 1px solid var(--bone-a12);
+  border-left: 2px solid var(--amber);
+  background: linear-gradient(180deg, var(--steel-800) 0%, var(--black) 100%);
+}
+
+.compat__eyebrow {
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.3em;
+  color: var(--amber);
+  text-transform: uppercase;
+}
+
+.compat__title {
+  font-family: var(--font-display);
+  font-size: clamp(1.9rem, 7vw, 3rem);
+  font-weight: 700;
+  line-height: 0.95;
+  color: var(--bone);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.compat__lede {
+  font-size: var(--step-md);
+  color: var(--fog);
+}
+
+.compat__detail {
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.16em;
+  color: var(--fog-faint);
+  text-transform: uppercase;
+}
+
+.compat__list {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0;
+  margin: 0.2rem 0;
+  list-style: none;
+}
+
+.compat__item {
+  padding-left: 1.1rem;
+  font-size: 0.95rem;
+  color: var(--fog);
+}
+
+.compat__item::before {
+  display: inline-block;
+  width: 1.1rem;
+  margin-left: -1.1rem;
+  color: var(--amber);
+  content: '—';
+}
+
+.compat__foot {
+  font-size: 0.9rem;
+  color: var(--fog-dim);
+}
+
+/* ------------------------------------------------------------ responsive */
+
+/* 720p-class windows: keep the HUD clusters from crowding the centre. */
+@media (max-height: 800px) {
+  .hud__vitals {
+    width: min(17.5rem, 28vw);
+  }
+
+  .panel--memory {
+    height: 100%;
+  }
+}
+
+@media (max-width: 1100px) {
+  .debrief__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hud__lower {
+    width: min(38rem, 70vw);
+  }
+}
+
+@media (min-width: 1600px) {
+  .debrief__body {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* ------------------------------------------------------- reduced motion */
+
+@media (prefers-reduced-motion: reduce) {
+  /*
+   * The restore meter would otherwise snap empty under the global 1ms clamp.
+   * Hold it full instead: the card still says what it is restoring.
+   */
+  .failcard__meterfill {
+    animation: none;
+    transform: none;
+  }
+
+  .title__presents,
+  .title__lockup {
+    transition: none;
+  }
+
+  .switchcut,
+  .switchcut::before,
+  .switchcut::after {
+    animation: none;
+  }
+}

@@ -1,0 +1,426 @@
+/* ------------------------------------------------------ dialog surfaces */
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: clamp(0.75rem, 4vh, 2.5rem) var(--gutter);
+  background: rgb(2 3 4 / 84%);
+}
+
+.scrim--failure {
+  z-index: 24;
+  background: rgb(2 3 4 / 72%);
+}
+
+.panel {
+  display: grid;
+  gap: clamp(0.9rem, 1.8vh, 1.5rem);
+  width: min(54rem, 100%);
+  max-height: 100%;
+  padding: clamp(1.1rem, 2.4vw, 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--bone-a20);
+  background:
+    linear-gradient(180deg, var(--steel-800) 0%, var(--steel-900) 46%, var(--black) 100%),
+    var(--black);
+  box-shadow: 0 40px 90px rgb(2 3 4 / 70%);
+}
+
+.panel--pause {
+  width: min(30rem, 100%);
+}
+
+.panel--memory {
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  width: min(58rem, 100%);
+  height: min(46rem, 100%);
+  overflow: hidden;
+}
+
+.panel__head {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.panel__eyebrow {
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.3em;
+  color: var(--fog-dim);
+  text-transform: uppercase;
+}
+
+.panel__title {
+  font-family: var(--font-display);
+  font-size: clamp(1.7rem, 3vw, 2.5rem);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--bone);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.panel__lede {
+  max-width: 62ch;
+  font-size: var(--step-md);
+  color: var(--fog);
+}
+
+.panel__meta,
+.panel__hint {
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.18em;
+  color: var(--fog-faint);
+  text-transform: uppercase;
+}
+
+.panel__hint--warn {
+  color: var(--amber);
+  letter-spacing: 0.1em;
+  text-transform: none;
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+}
+
+.panel__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  align-items: center;
+}
+
+.panel__foot--split {
+  justify-content: space-between;
+}
+
+.panel__footgroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  align-items: center;
+}
+
+/* -------------------------------------------------------- controls list */
+
+.ctrlgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: clamp(0.9rem, 2vw, 1.75rem);
+}
+
+.ctrlgroup__title {
+  padding-bottom: 0.35rem;
+  margin-bottom: 0.5rem;
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  font-weight: 400;
+  letter-spacing: 0.24em;
+  color: var(--cyan);
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--bone-a12);
+}
+
+.ctrlgroup__list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.binding {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: 0.7rem;
+  align-items: baseline;
+}
+
+.binding__keys {
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.12em;
+  color: var(--bone);
+  text-transform: uppercase;
+}
+
+.binding__action {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--fog);
+}
+
+.binding__note {
+  display: block;
+  font-size: var(--step-sm);
+  color: var(--fog-faint);
+}
+
+/* ------------------------------------------------------------ pause menu */
+
+.pausestate {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+}
+
+.pausestate__row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: 0.3rem;
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--bone-a06);
+}
+
+.pausestate__row dt {
+  color: var(--fog-faint);
+}
+
+.pausestate__row dd {
+  margin: 0;
+  color: var(--bone);
+  text-align: right;
+}
+
+.pausemenu {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.pausemenu .ui-btn {
+  justify-content: flex-start;
+  padding-inline: 1.1rem;
+}
+
+/* ----------------------------------------------------------- memory view */
+
+.md {
+  display: grid;
+  gap: 0.55rem;
+  align-content: start;
+  padding: clamp(0.9rem, 1.6vw, 1.3rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--fog);
+  border: 1px solid var(--bone-a12);
+  background: rgb(2 3 4 / 60%);
+}
+
+.md__empty {
+  max-width: 62ch;
+  color: var(--fog);
+}
+
+.md__h2,
+.md__h3,
+.md__h4 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--bone);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.md__h2 {
+  padding-bottom: 0.3rem;
+  margin-top: 0.5rem;
+  font-size: 1.15rem;
+  border-bottom: 1px solid var(--bone-a12);
+}
+
+.md__h3 {
+  margin-top: 0.35rem;
+  font-size: 1rem;
+  color: var(--cyan);
+}
+
+.md__h4 {
+  font-size: 0.9rem;
+  color: var(--fog);
+}
+
+.md__p {
+  max-width: 74ch;
+  overflow-wrap: anywhere;
+}
+
+.md__quote {
+  padding: 0.4rem 0.8rem;
+  margin: 0;
+  color: var(--fog-dim);
+  border-left: 2px solid var(--amber);
+  background: var(--amber-a10);
+}
+
+.md__list {
+  display: grid;
+  gap: 0.25rem;
+  padding-left: 1.1rem;
+  margin: 0;
+}
+
+.md__list li {
+  overflow-wrap: anywhere;
+}
+
+.md__list li::marker {
+  color: var(--fog-faint);
+}
+
+.md__rule {
+  height: 1px;
+  border: 0;
+  background: var(--bone-a12);
+}
+
+.md__code {
+  padding: 0.05em 0.35em;
+  font-family: var(--font-stencil);
+  font-size: 0.85em;
+  color: var(--cyan-soft);
+  background: var(--cyan-a08);
+  border: 1px solid var(--cyan-a16);
+}
+
+.resetconfirm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--alarm);
+  background: rgb(200 64 47 / 10%);
+}
+
+.resetconfirm__text {
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.16em;
+  color: var(--bone);
+  text-transform: uppercase;
+}
+
+/* ---------------------------------------------------------- failure card */
+
+@keyframes fail-slam {
+  from {
+    opacity: 0;
+    scale: 1.05;
+  }
+
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes fail-drain {
+  from {
+    transform: scaleX(1);
+  }
+
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.failcard {
+  display: grid;
+  gap: 0.55rem;
+  justify-items: center;
+  width: min(34rem, 100%);
+  padding: clamp(1.2rem, 3vw, 2.1rem);
+  text-align: center;
+  border: 1px solid var(--alarm);
+  background: linear-gradient(180deg, rgb(9 15 17 / 96%) 0%, rgb(2 3 4 / 96%) 100%);
+  box-shadow: 0 0 90px rgb(200 64 47 / 18%);
+  animation: fail-slam 180ms var(--ease-out) both;
+}
+
+.failcard__rule {
+  width: 3.5rem;
+  height: 2px;
+  background: var(--alarm);
+}
+
+.failcard__eyebrow {
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.3em;
+  color: var(--fog-dim);
+  text-transform: uppercase;
+}
+
+.failcard__title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4.4vw, 3.4rem);
+  font-weight: 700;
+  line-height: 0.95;
+  color: var(--alarm);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.failcard__cause {
+  max-width: 44ch;
+  font-size: var(--step-md);
+  color: var(--bone);
+  overflow-wrap: anywhere;
+}
+
+.failcard__detail {
+  max-width: 48ch;
+  font-size: 0.9rem;
+  color: var(--fog);
+}
+
+.failcard__attribution,
+.failcard__memory {
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.18em;
+  color: var(--fog-faint);
+  text-transform: uppercase;
+}
+
+.failcard__restore {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+  width: 100%;
+  margin-top: 0.35rem;
+}
+
+.failcard__restoretext {
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.2em;
+  color: var(--fog);
+  text-transform: uppercase;
+}
+
+.failcard__meter {
+  display: block;
+  width: min(18rem, 100%);
+  height: 2px;
+  background: var(--bone-a12);
+}
+
+/* Paces the card's roughly two-second beat. The parent still owns the timing. */
+.failcard__meterfill {
+  display: block;
+  height: 100%;
+  background: var(--alarm);
+  transform-origin: left center;
+  animation: fail-drain var(--fail-hold, 2000ms) linear both;
+}

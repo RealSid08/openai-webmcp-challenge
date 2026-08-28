@@ -1,0 +1,788 @@
+/*
+ * Mission surfaces: title sequence, HUD, overlays, dialogs, failure card,
+ * debrief, and the desktop compatibility notice.
+ *
+ * Extends the pairing screen's language rather than restating it: near-black
+ * graphite panels, hairline steel borders, stencil micro-labels, cyan for the
+ * body you hold, amber for the body your partner holds, red kept for failure.
+ *
+ * Stacking inside `.app-shell`, whose atmosphere layers occupy z-index 0–5:
+ *   6  HUD            8  full screens (debrief, compatibility)
+ *   20 dialogs        24 failure card        30 title sequence
+ */
+
+/* ------------------------------------------------------------- controls */
+
+.ui-btn {
+  position: relative;
+  display: inline-flex;
+  gap: 0.6rem;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.7rem;
+  padding: 0 1.25rem;
+  font-family: var(--font-display);
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  border: 1px solid var(--bone-a20);
+  transition:
+    color var(--dur-fast) var(--ease-signal),
+    border-color var(--dur-fast) var(--ease-signal),
+    background-color var(--dur-fast) var(--ease-signal);
+}
+
+/* Corner ticks rather than a clipped shape, so the focus ring stays whole. */
+.ui-btn::before,
+.ui-btn::after {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  content: '';
+  border: 1px solid currentcolor;
+  opacity: 0.5;
+}
+
+.ui-btn::before {
+  top: 3px;
+  left: 3px;
+  border-width: 1px 0 0 1px;
+}
+
+.ui-btn::after {
+  right: 3px;
+  bottom: 3px;
+  border-width: 0 1px 1px 0;
+}
+
+.ui-btn--primary {
+  color: var(--black);
+  background: var(--cyan);
+  border-color: var(--cyan);
+}
+
+.ui-btn--primary:hover:not(:disabled) {
+  background: var(--cyan-soft);
+  border-color: var(--cyan-soft);
+}
+
+.ui-btn--ghost {
+  color: var(--fog);
+  background: transparent;
+}
+
+.ui-btn--ghost:hover:not(:disabled) {
+  color: var(--bone);
+  background: var(--cyan-a08);
+  border-color: var(--cyan-a32);
+}
+
+.ui-btn--quiet {
+  color: var(--fog-dim);
+  background: transparent;
+  border-color: transparent;
+}
+
+.ui-btn--quiet:hover:not(:disabled) {
+  color: var(--bone);
+  border-color: var(--bone-a12);
+}
+
+/* No frame to tick out. */
+.ui-btn--quiet::before,
+.ui-btn--quiet::after {
+  content: none;
+}
+
+.ui-btn--danger {
+  color: var(--bone);
+  background: rgb(200 64 47 / 18%);
+  border-color: var(--alarm);
+}
+
+.ui-btn--danger:hover:not(:disabled) {
+  background: var(--alarm);
+  color: var(--black);
+}
+
+.ui-btn:disabled {
+  color: var(--fog-faint);
+  background: var(--steel-800);
+  border-color: var(--bone-a12);
+}
+
+/* --------------------------------------------------------------- title */
+
+.title {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  background: var(--void);
+}
+
+.title__presents,
+.title__lockup {
+  grid-area: 1 / 1;
+  padding-inline: var(--gutter);
+  text-align: center;
+  opacity: 0;
+}
+
+.title__presents {
+  font-family: var(--font-display);
+  font-size: clamp(1.1rem, 2.2vw, 1.9rem);
+  font-weight: 600;
+  letter-spacing: 0.4em;
+  text-indent: 0.4em;
+  color: var(--fog);
+  transition: opacity 700ms var(--ease-signal);
+}
+
+/* The lockup arrives on a short fade, per the authored sequence. */
+.title__lockup {
+  display: grid;
+  gap: clamp(0.5rem, 1.4vh, 1.1rem);
+  justify-items: center;
+  margin: 0;
+  transition: opacity 260ms var(--ease-signal);
+}
+
+.title--presents .title__presents,
+.title--lockup .title__lockup {
+  opacity: 1;
+}
+
+.title--fade-out .title__lockup {
+  opacity: 0;
+  transition-duration: 720ms;
+}
+
+.title__mark {
+  font-family: var(--font-display);
+  font-size: clamp(6rem, 18vw, 22rem);
+  font-weight: 700;
+  font-stretch: 75%;
+  line-height: 0.8;
+  color: var(--bone);
+  letter-spacing: 0.01em;
+  text-shadow: 0 0 72px rgb(85 216 222 / 16%);
+}
+
+.title__sub {
+  font-family: var(--font-display);
+  font-size: clamp(1.1rem, 2.7vw, 2.6rem);
+  font-weight: 600;
+  letter-spacing: 0.44em;
+  text-indent: 0.44em;
+  color: var(--cyan);
+}
+
+.title__skip {
+  position: absolute;
+  right: var(--gutter);
+  bottom: clamp(1.25rem, 4vh, 2.5rem);
+  padding: 0.4rem 0.75rem;
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.22em;
+  color: var(--fog-faint);
+  text-transform: uppercase;
+  border: 1px solid var(--bone-a12);
+}
+
+.title__skip:hover {
+  color: var(--bone);
+  border-color: var(--cyan-a32);
+}
+
+/* ----------------------------------------------------------------- hud */
+
+.hud {
+  --hud-pad: clamp(0.9rem, 1.7vw, 1.75rem);
+
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  font-family: var(--font-ui);
+}
+
+.hud__reticle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 22px;
+  height: 22px;
+  translate: -50% -50%;
+  background:
+    linear-gradient(90deg, var(--bone) 0 7px, transparent 7px calc(100% - 7px), var(--bone) calc(100% - 7px)) center / 100% 1px no-repeat,
+    linear-gradient(180deg, var(--bone) 0 7px, transparent 7px calc(100% - 7px), var(--bone) calc(100% - 7px)) center / 1px 100% no-repeat;
+  opacity: 0.75;
+  filter: drop-shadow(0 0 2px rgb(2 3 4 / 90%));
+}
+
+/* ---------------------------------------------------------- hud vitals */
+
+.hud__vitals {
+  position: absolute;
+  top: var(--hud-pad);
+  left: var(--hud-pad);
+  width: min(20rem, 30vw);
+}
+
+.hud__vitallist {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.vital {
+  --accent: var(--fog-dim);
+
+  display: grid;
+  grid-template-columns: 2.1rem minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: center;
+  padding: 0.45rem 0.6rem;
+  background: linear-gradient(90deg, rgb(5 7 8 / 82%) 0%, rgb(5 7 8 / 40%) 100%);
+  border: 1px solid var(--bone-a12);
+  border-left: 2px solid var(--accent);
+  opacity: 0.82;
+}
+
+.vital--owen {
+  --accent: var(--cyan);
+}
+
+.vital--cody {
+  --accent: var(--amber);
+}
+
+/* The body you are holding is fully lit; the other one sits back one step. */
+.vital--human {
+  background: linear-gradient(90deg, rgb(9 15 17 / 92%) 0%, rgb(9 15 17 / 55%) 100%);
+  border-color: var(--bone-a20);
+  opacity: 1;
+}
+
+.vital__tag {
+  display: grid;
+  place-items: center;
+  height: 1.6rem;
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  opacity: 0.85;
+}
+
+.vital__body {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.vital__head,
+.vital__foot {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.vital__name {
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--bone);
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.vital__owner {
+  flex: none;
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.vital__bar {
+  display: block;
+  height: 5px;
+  background: rgb(2 3 4 / 80%);
+  border: 1px solid var(--bone-a12);
+}
+
+.vital__fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width var(--dur-mid) var(--ease-signal);
+}
+
+/*
+ * The fill keeps each infiltrator's identity colour at every health level;
+ * only the critical state overrides it, so red always means one thing.
+ */
+.vital[data-tone='critical'] {
+  border-color: rgb(200 64 47 / 55%);
+}
+
+.vital[data-tone='critical'] .vital__fill {
+  background: var(--alarm);
+}
+
+.vital[data-tone='critical'] .vital__count {
+  color: var(--alarm);
+}
+
+.vital__role,
+.vital__count {
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.14em;
+  color: var(--fog-dim);
+  text-transform: uppercase;
+}
+
+.vital__count {
+  flex: none;
+  color: var(--fog);
+}
+
+/* ------------------------------------------------------- hud objective */
+
+.hud__objective {
+  position: absolute;
+  top: var(--hud-pad);
+  right: var(--hud-pad);
+  display: grid;
+  gap: 0.35rem;
+  justify-items: end;
+  width: min(22rem, 32vw);
+  text-align: right;
+}
+
+.hud__section,
+.hud__bomb,
+.hud__incidents,
+.hud__switchtext {
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.22em;
+  color: var(--fog-dim);
+  text-transform: uppercase;
+}
+
+.hud__objectivetext {
+  font-family: var(--font-display);
+  font-size: clamp(1.05rem, 1.5vw, 1.45rem);
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--bone);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 12px rgb(2 3 4 / 90%);
+  overflow-wrap: anywhere;
+}
+
+.hud__bomb {
+  padding: 0.15rem 0.45rem;
+  color: var(--amber);
+  border: 1px solid var(--amber-a24);
+  background: var(--amber-a10);
+}
+
+.hud__bomb[data-state='DETONATED'] {
+  color: var(--cyan);
+  border-color: var(--cyan-a32);
+  background: var(--cyan-a08);
+}
+
+.hud__incidents {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.hud__incidentcount {
+  color: var(--fog);
+}
+
+.hud__incidents[data-limit='true'] .hud__incidentcount {
+  color: var(--alarm);
+}
+
+.hud__critical {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.35rem 0.6rem;
+  background: rgb(200 64 47 / 16%);
+  border: 1px solid var(--alarm);
+}
+
+.hud__criticaltitle {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--alarm);
+  text-transform: uppercase;
+}
+
+.hud__criticalbody {
+  font-size: 0.85rem;
+  color: var(--bone);
+  overflow-wrap: anywhere;
+}
+
+/* Countdown rows. The decision window outranks the forced-switch lock. */
+.hudtimer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.15rem 0.6rem;
+  width: 100%;
+  padding: 0.35rem 0.55rem;
+  text-align: left;
+  border: 1px solid var(--bone-a12);
+  background: rgb(5 7 8 / 78%);
+}
+
+.hudtimer__label {
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.18em;
+  color: var(--fog);
+  text-transform: uppercase;
+}
+
+.hudtimer__value {
+  font-family: var(--font-stencil);
+  font-size: var(--step-sm);
+  color: var(--bone);
+  text-align: right;
+}
+
+.hudtimer__track {
+  grid-column: 1 / -1;
+  height: 3px;
+  background: rgb(2 3 4 / 80%);
+}
+
+.hudtimer__fill {
+  display: block;
+  height: 100%;
+  background: var(--cyan);
+}
+
+.hudtimer--decision {
+  border-color: var(--amber-a24);
+  background: var(--amber-a10);
+}
+
+.hudtimer--decision .hudtimer__fill {
+  background: var(--amber);
+}
+
+.hudtimer--decision .hudtimer__label {
+  color: var(--amber-soft);
+}
+
+/* ----------------------------------------------------------- hud lower */
+
+.hud__lower {
+  position: absolute;
+  bottom: var(--hud-pad);
+  left: 50%;
+  display: grid;
+  gap: 0.5rem;
+  justify-items: center;
+  width: min(46rem, 52vw);
+  translate: -50% 0;
+}
+
+.hudprompt {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.5rem 0.85rem;
+  text-align: center;
+  border: 1px solid var(--cyan-a32);
+  background: rgb(5 7 8 / 86%);
+}
+
+.hudprompt__title {
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.22em;
+  color: var(--cyan);
+  text-transform: uppercase;
+}
+
+.hudprompt__body {
+  font-size: 0.95rem;
+  color: var(--bone);
+}
+
+.hud__subs {
+  display: grid;
+  gap: 0.3rem;
+  justify-items: center;
+  width: 100%;
+}
+
+/* Subtitles carry their own plate so they stay legible over any scene. */
+.sub {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: baseline;
+  max-width: 100%;
+  padding: 0.35rem 0.8rem;
+  font-size: clamp(1rem, 1.05vw, 1.15rem);
+  line-height: 1.35;
+  color: var(--bone);
+  background: rgb(2 3 4 / 78%);
+  border-left: 2px solid var(--fog-dim);
+  overflow-wrap: anywhere;
+}
+
+.sub--critical {
+  color: var(--bone);
+  background: rgb(69 41 14 / 78%);
+  border-left-color: var(--amber);
+}
+
+.sub__speaker {
+  flex: none;
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.18em;
+  color: var(--cyan);
+  text-transform: uppercase;
+}
+
+.sub--critical .sub__speaker {
+  color: var(--amber-soft);
+}
+
+.hud__calloutack {
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+  padding: 0.25rem 0.6rem;
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  border: 1px solid var(--bone-a12);
+  background: rgb(5 7 8 / 78%);
+}
+
+.hud__calloutlabel {
+  color: var(--fog-dim);
+}
+
+.hud__calloutvalue {
+  color: var(--bone);
+}
+
+.hud__calloutstate {
+  color: var(--cyan);
+}
+
+.hud__calloutstate--pending {
+  color: var(--amber);
+}
+
+.hud__callouts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.calloutkey {
+  display: inline-flex;
+  gap: 0.45rem;
+  align-items: center;
+  padding: 0.25rem 0.6rem;
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.16em;
+  color: var(--fog);
+  text-transform: uppercase;
+  pointer-events: auto;
+  border: 1px solid var(--bone-a12);
+  background: rgb(5 7 8 / 72%);
+  transition:
+    color var(--dur-fast) var(--ease-signal),
+    border-color var(--dur-fast) var(--ease-signal);
+}
+
+.calloutkey:hover {
+  color: var(--bone);
+  border-color: var(--cyan-a32);
+}
+
+.calloutkey__key {
+  display: grid;
+  place-items: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--cyan);
+  border: 1px solid var(--cyan-a32);
+}
+
+/* ----------------------------------------------------------- hud right */
+
+.hud__right {
+  position: absolute;
+  right: var(--hud-pad);
+  bottom: var(--hud-pad);
+  display: grid;
+  gap: 0.5rem;
+  justify-items: end;
+  min-width: 9.5rem;
+  text-align: right;
+}
+
+.hudvehicle {
+  display: grid;
+  gap: 0.2rem;
+  justify-items: end;
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--bone-a12);
+  background: rgb(5 7 8 / 78%);
+}
+
+.hudvehicle__label {
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.2em;
+  color: var(--fog-dim);
+  text-transform: uppercase;
+}
+
+.hudvehicle__bar {
+  display: block;
+  width: 100%;
+  height: 5px;
+  background: rgb(2 3 4 / 80%);
+  border: 1px solid var(--bone-a12);
+}
+
+.hudvehicle__fill {
+  display: block;
+  height: 100%;
+  background: var(--cyan);
+  transition: width var(--dur-mid) var(--ease-signal);
+}
+
+.hudvehicle[data-tone='hurt'] .hudvehicle__fill {
+  background: var(--amber);
+}
+
+.hudvehicle[data-tone='critical'] .hudvehicle__fill {
+  background: var(--alarm);
+}
+
+.hudvehicle__value {
+  font-family: var(--font-stencil);
+  font-size: var(--step-sm);
+  color: var(--bone);
+}
+
+.hudammo {
+  display: grid;
+  gap: 0.1rem;
+  justify-items: end;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--bone-a12);
+  background: rgb(5 7 8 / 78%);
+}
+
+.hudammo__weapon,
+.hudammo__state {
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.2em;
+  color: var(--fog-dim);
+  text-transform: uppercase;
+}
+
+.hudammo__counts {
+  display: flex;
+  gap: 0.35rem;
+  align-items: baseline;
+  font-family: var(--font-display);
+  line-height: 1;
+  color: var(--bone);
+}
+
+.hudammo__magazine {
+  font-size: clamp(1.7rem, 2.2vw, 2.3rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.hudammo__divider,
+.hudammo__reserve {
+  font-family: var(--font-stencil);
+  font-size: var(--step-sm);
+  color: var(--fog);
+}
+
+.hudammo--empty {
+  border-color: var(--alarm);
+}
+
+.hudammo--empty .hudammo__magazine,
+.hudammo--empty .hudammo__state {
+  color: var(--alarm);
+}
+
+/* ---------------------------------------------------------- hud notice */
+
+/* Bottom-left is the only corner nothing else claims, so the memory
+ * notification can never sit on the vitals, subtitles, or ammunition. */
+.hud__notice {
+  position: absolute;
+  bottom: var(--hud-pad);
+  left: var(--hud-pad);
+}
+
+.hudnotice {
+  padding: 0.25rem 0.6rem;
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.22em;
+  color: var(--cyan);
+  text-transform: uppercase;
+  border: 1px solid var(--cyan-a32);
+  background: var(--cyan-a08);
+}
+
+/*
+ * The live regions stay in the DOM so announcements work, but an empty one
+ * must not spend a grid gap. `contents` drops the box without hiding it.
+ */
+.hud__switchnotice:empty,
+.hud__alerts:empty {
+  display: contents;
+}

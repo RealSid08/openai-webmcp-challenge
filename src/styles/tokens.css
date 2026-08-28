@@ -1,0 +1,85 @@
+/*
+ * HS: Heist design tokens.
+ * Cold industrial crime thriller: near-black graphite, oxidized steel,
+ * cold cyan practical light, dirty amber warnings, restrained emergency red.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --void: #020304;
+  --black: #050708;
+  --steel-900: #090f11;
+  --steel-800: #101819;
+  --steel-700: #172224;
+  --steel-600: #1f2c2e;
+  --steel-500: #2c3b3d;
+  --steel-400: #3d4f51;
+
+  /* Oxidation */
+  --rust-700: #3a2312;
+  --rust-500: #6b4526;
+
+  /* Light */
+  --bone: #edf3f0;
+  --fog: #9db0ad;
+  --fog-dim: #6a7a77;
+  --fog-faint: #45514f;
+
+  /* Signals */
+  --cyan: #55d8de;
+  --cyan-soft: #8fe6ea;
+  --cyan-deep: #0e474e;
+  /* Lit-by-cyan white for the paired headline; the saturated cyan stays a signal. */
+  --ice: #d3efee;
+  --amber: #d58b3a;
+  --amber-soft: #e8b271;
+  --amber-deep: #45290e;
+  --alarm: #c8402f;
+
+  /* Signal alphas */
+  --cyan-a08: rgb(85 216 222 / 8%);
+  --cyan-a16: rgb(85 216 222 / 16%);
+  --cyan-a32: rgb(85 216 222 / 32%);
+  --amber-a10: rgb(213 139 58 / 10%);
+  --amber-a24: rgb(213 139 58 / 24%);
+  --bone-a06: rgb(237 243 240 / 6%);
+  --bone-a12: rgb(237 243 240 / 12%);
+  --bone-a20: rgb(237 243 240 / 20%);
+
+  /* Type */
+  --font-display:
+    'Bahnschrift SemiCondensed', 'DIN Condensed', 'Avenir Next Condensed', 'Roboto Condensed',
+    'Arial Narrow', 'Liberation Sans Narrow', Impact, 'Franklin Gothic Medium', system-ui, sans-serif;
+  --font-stencil:
+    ui-monospace, 'SF Mono', SFMono-Regular, 'JetBrains Mono', 'Roboto Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
+  --font-ui:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  /* Display scale */
+  --step-hero: clamp(2.6rem, 6.6vw, 7rem);
+  --step-lg: clamp(1.35rem, 2.1vw, 1.9rem);
+  --step-md: clamp(0.95rem, 1.15vw, 1.075rem);
+  --step-sm: 0.78rem;
+  --step-xs: 0.665rem;
+
+  /* Rhythm */
+  --gutter: clamp(1.25rem, 3.4vw, 4rem);
+  --rail-h: 2.75rem;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 0.84, 0.32, 1);
+  --ease-signal: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 120ms;
+  --dur-mid: 260ms;
+
+  /* Layers */
+  --z-bays: 0;
+  --z-light: 1;
+  --z-content: 2;
+  --z-grain: 3;
+  --z-scan: 4;
+  --z-vignette: 5;
+}
