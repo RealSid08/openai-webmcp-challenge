@@ -430,7 +430,12 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
 
       {missionVisible ? (
         <>
-          <GameCanvas services={services} onStatus={handleRuntimeStatus} audioSettings={audioSettings} />
+          <GameCanvas
+            services={services}
+            onStatus={handleRuntimeStatus}
+            audioSettings={audioSettings}
+            onPauseRequest={pauseMission}
+          />
           <Hud
             characters={[
               {

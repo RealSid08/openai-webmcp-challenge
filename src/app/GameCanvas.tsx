@@ -8,11 +8,13 @@ interface GameCanvasProps {
   services: AppServices;
   onStatus: (status: GameRuntimeStatus) => void;
   audioSettings: AudioSettings;
+  onPauseRequest: () => void;
 }
 
-export function GameCanvas({ services, onStatus, audioSettings }: GameCanvasProps) {
+export function GameCanvas({ services, onStatus, audioSettings, onPauseRequest }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const runtimeRef = useRef<import('../game/BabylonGameRuntime').BabylonGameRuntime | null>(null);
+  const onPauseRequestRef = useRef(onPauseRequest);
   const [error, setError] = useState<string | null>(null);
   const [pointerState, setPointerState] = useState<GameRuntimeStatus['pointerLock']>({
     state: 'IDLE',
@@ -20,6 +22,10 @@ export function GameCanvas({ services, onStatus, audioSettings }: GameCanvasProp
     dragFallback: true,
     message: null,
   });
+
+  useEffect(() => {
+    onPauseRequestRef.current = onPauseRequest;
+  }, [onPauseRequest]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -38,6 +44,7 @@ export function GameCanvas({ services, onStatus, audioSettings }: GameCanvasProp
             onStatus(status);
           },
           audioSettings,
+          onPauseRequest: () => onPauseRequestRef.current(),
         });
         runtimeRef.current = runtime;
         disposeRuntime = () => {

@@ -83,4 +83,16 @@ describe('InputManager', () => {
     expect(input.poll().skipTrainingHeld).toBe(false);
     input.dispose();
   });
+
+  it('restores sprint and clears held/edge state at a checkpoint rebuild', () => {
+    const input = new InputManager({ target: window, getGamepads: () => [] });
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ShiftLeft' }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW' }));
+    expect(input.poll()).toMatchObject({ sprinting: false, move: { y: 1 } });
+
+    input.resetForCheckpoint();
+
+    expect(input.poll()).toMatchObject({ sprinting: true, move: { x: 0, y: 0 } });
+    input.dispose();
+  });
 });

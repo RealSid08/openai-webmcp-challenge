@@ -156,6 +156,16 @@ export class InputManager {
     return frame;
   }
 
+  resetForCheckpoint(): void {
+    this.keys.clear();
+    this.keyEdges.clear();
+    this.gamepadPressed.clear();
+    this.sprinting = true;
+    this.mouseAim = false;
+    this.mouseFire = false;
+    this.mouseDelta = { x: 0, y: 0 };
+  }
+
   dispose(): void {
     this.target.removeEventListener('keydown', this.onKeyDown);
     this.target.removeEventListener('keyup', this.onKeyUp);

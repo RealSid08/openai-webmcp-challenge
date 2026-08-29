@@ -31,7 +31,7 @@ describe('PartnerCoordinator pairing', () => {
       sessionId: 'session-1',
       alreadyJoined: false,
     });
-    expect(first.instructions).toContain('wait_for_mission_event');
+    expect(first.instructionsText).toContain('wait_for_mission_event');
     expect(repeated).toMatchObject({
       ok: true,
       sessionId: 'session-1',

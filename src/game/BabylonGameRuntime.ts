@@ -57,6 +57,7 @@ interface RuntimeOptions {
   services: AppServices;
   onStatus: (status: GameRuntimeStatus) => void;
   audioSettings: AudioSettings;
+  onPauseRequest: () => void;
 }
 
 interface TurnRuntime {
@@ -232,6 +233,7 @@ export class BabylonGameRuntime {
     this.attackSequence = 0;
     this.lastCameraBob = 0;
     this.playerMotor.reset();
+    this.input.resetForCheckpoint();
 
     if (section && FACILITY_SECTIONS.has(section)) this.buildFacility(section);
     if (section === 'CHASE') this.buildChase();
@@ -518,6 +520,12 @@ export class BabylonGameRuntime {
     this.options.services.store.tick();
     const snapshot = this.options.services.store.getSnapshot();
     this.lastInputFrame = this.input.poll();
+    if (this.lastInputFrame.pausePressed && snapshot.phase === 'MISSION' && !snapshot.paused) {
+      this.options.onPauseRequest();
+      this.emitStatus(true);
+      this.scene.render();
+      return;
+    }
     const totalHealth = snapshot.characters.OWEN.health + snapshot.characters.CODY.health;
     this.audio.update(
       {
@@ -605,8 +613,10 @@ export class BabylonGameRuntime {
     const roadX = this.routeX(this.chaseProgress);
 
     if (snapshot.humanCharacter === 'OWEN') {
-      if (this.pressed.has('KeyA')) this.chaseLane = Math.max(CHASE_ROUTE.laneMin, this.chaseLane - dt * 1.6);
-      if (this.pressed.has('KeyD')) this.chaseLane = Math.min(CHASE_ROUTE.laneMax, this.chaseLane + dt * 1.6);
+      this.chaseLane = Math.min(
+        CHASE_ROUTE.laneMax,
+        Math.max(CHASE_ROUTE.laneMin, this.chaseLane + this.lastInputFrame.move.x * dt * 1.75),
+      );
     }
     const desiredX = roadX + this.chaseLane * 3.25;
     this.carMesh.position.x += (desiredX - this.carMesh.position.x) * Math.min(1, dt * 5);
@@ -870,14 +880,14 @@ export class BabylonGameRuntime {
         state = { evaluated: false, humanAction: 'HOLD' };
         this.turnState.set(id, state);
         if (controller.ok && controller.controller === 'HUMAN') {
-          state.humanAction = this.pressed.has('KeyA') ? 'LEFT' : this.pressed.has('KeyD') ? 'RIGHT' : 'HOLD';
+          state.humanAction = this.chaseLane < -0.2 ? 'LEFT' : this.chaseLane > 0.2 ? 'RIGHT' : 'HOLD';
         }
       }
       if (!state || state.evaluated || this.chaseProgress < turn.progress + 2) continue;
       const action = snapshot.humanCharacter === 'OWEN'
-        ? this.pressed.has('KeyA')
+        ? this.chaseLane < -0.2
           ? 'LEFT'
-          : this.pressed.has('KeyD')
+          : this.chaseLane > 0.2
             ? 'RIGHT'
             : state.humanAction
         : this.chaseLane < -0.25
