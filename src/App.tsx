@@ -62,6 +62,7 @@ const initialRuntimeStatus: GameRuntimeStatus = {
     refresher: false,
     skipProgress: 0,
   },
+  minimap: null,
 };
 
 function detectCompatibility(): { reason: CompatibilityReason; detail: string } | null {
@@ -442,6 +443,7 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
             onCallout={sendCallout}
             memoryNotice={partnerEvents.at(-1)?.type === 'MEMORY_UPDATED' ? partnerEvents.at(-1)?.summary : null}
             showReticle={snapshot.section !== 'CHASE' || snapshot.humanCharacter === 'CODY'}
+            minimap={runtimeStatus.minimap}
           />
         </>
       ) : null}

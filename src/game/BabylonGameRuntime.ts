@@ -26,6 +26,11 @@ import type { CharacterId, MissionSection } from './MissionStore';
 import { RuntimeVisualFactory, type RuntimeEnemy } from './RuntimeVisualFactory';
 import { FirstPersonViewModel } from './presentation/FirstPersonViewModel';
 import {
+  projectChaseMinimap,
+  projectFacilityMinimap,
+  type MinimapSnapshot,
+} from './presentation/minimapModel';
+import {
   choosePrioritizedTarget,
   shouldAdvanceMissionSimulation,
   shouldHoldForAgentTurn,
@@ -44,6 +49,7 @@ export interface GameRuntimeStatus {
   pointerLock: PointerLockSnapshot;
   inputDevice: InputDevice;
   tutorial: TutorialSnapshot;
+  minimap: MinimapSnapshot | null;
 }
 
 interface RuntimeOptions {
@@ -1178,6 +1184,75 @@ export class BabylonGameRuntime {
       pointerLock,
       inputDevice: this.lastInputFrame.device,
       tutorial,
+      minimap: this.createMinimapSnapshot(),
+    });
+  }
+
+  private createMinimapSnapshot(): MinimapSnapshot | null {
+    const snapshot = this.options.services.store.getSnapshot();
+    if (snapshot.section === 'CHASE') {
+      return projectChaseMinimap({
+        progress: this.chaseProgress,
+        routeLength: CHASE_ROUTE.length,
+        turns: CHASE_ROUTE.turns.map((turn) => ({
+          id: turn.id,
+          progress: turn.progress,
+          direction: turn.safeAction,
+        })),
+        pursuers: this.pursuers.map((pursuer, index) => ({
+          id: pursuer.id,
+          lane: index - 1,
+          distanceBehind: this.carMesh
+            ? Math.max(0, (this.carMesh.position.z - pursuer.mesh.position.z) / 3)
+            : 20,
+          alive: pursuer.alive,
+        })),
+      });
+    }
+    if (!snapshot.section || !FACILITY_SECTIONS.has(snapshot.section)) return null;
+    const partnerId: CharacterId = snapshot.humanCharacter === 'OWEN' ? 'CODY' : 'OWEN';
+    const characterPositions: Record<CharacterId, Vector3> = {
+      OWEN: this.characterPositions.OWEN.clone(),
+      CODY: this.characterPositions.CODY.clone(),
+    };
+    characterPositions[snapshot.humanCharacter] = this.camera.position.clone();
+    if (this.partnerMesh) characterPositions[partnerId] = this.partnerMesh.position.clone();
+    const objectivePoint = snapshot.section === 'FACILITY_ONE'
+      ? { x: 0, z: 19 }
+      : snapshot.section === 'FACILITY_TWO'
+        ? { x: 0, z: 45 }
+        : { x: FACILITY_LAYOUT.gate.plantPoint.x, z: FACILITY_LAYOUT.gate.plantPoint.z };
+    return projectFacilityMinimap({
+      controlledPosition: { x: this.camera.position.x, z: this.camera.position.z },
+      controlledYaw: this.camera.rotation.y,
+      objective: { ...objectivePoint, label: snapshot.objective },
+      route: FACILITY_LAYOUT.navigationPath,
+      characters: (['OWEN', 'CODY'] as const).map((id) => ({
+        id,
+        x: characterPositions[id].x,
+        z: characterPositions[id].z,
+        controlled: id === snapshot.humanCharacter,
+      })),
+      enemies: this.enemies.map((enemy) => {
+        const state = this.enemyDirector.getState(enemy.id)?.state;
+        return {
+          id: enemy.id,
+          x: enemy.mesh.position.x,
+          z: enemy.mesh.position.z,
+          detected:
+            enemy.alive &&
+            (state !== 'SEEK' || Vector3.Distance(enemy.mesh.position, this.camera.position) < 22),
+        };
+      }),
+      interactions: [
+        {
+          id: 'blast-gate',
+          label: 'Blast gate',
+          x: FACILITY_LAYOUT.gate.plantPoint.x,
+          z: FACILITY_LAYOUT.gate.plantPoint.z,
+        },
+      ],
+      viewRadius: 18,
     });
   }
 }
