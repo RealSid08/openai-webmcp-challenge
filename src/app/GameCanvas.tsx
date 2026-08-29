@@ -10,7 +10,14 @@ interface GameCanvasProps {
 
 export function GameCanvas({ services, onStatus }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const runtimeRef = useRef<import('../game/BabylonGameRuntime').BabylonGameRuntime | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pointerState, setPointerState] = useState<GameRuntimeStatus['pointerLock']>({
+    state: 'IDLE',
+    canRetry: true,
+    dragFallback: true,
+    message: null,
+  });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -21,8 +28,19 @@ export function GameCanvas({ services, onStatus }: GameCanvasProps) {
     void import('../game/BabylonGameRuntime')
       .then(({ BabylonGameRuntime }) => {
         if (disposed) return;
-        const runtime = new BabylonGameRuntime({ canvas, services, onStatus });
-        disposeRuntime = () => runtime.dispose();
+        const runtime = new BabylonGameRuntime({
+          canvas,
+          services,
+          onStatus: (status) => {
+            setPointerState(status.pointerLock);
+            onStatus(status);
+          },
+        });
+        runtimeRef.current = runtime;
+        disposeRuntime = () => {
+          runtimeRef.current = null;
+          runtime.dispose();
+        };
       })
       .catch((reason: unknown) => {
         if (!disposed) {
@@ -38,7 +56,24 @@ export function GameCanvas({ services, onStatus }: GameCanvasProps) {
 
   return (
     <div className="game-canvas-shell">
-      <canvas ref={canvasRef} className="game-canvas" aria-label="HS: Heist first-person game" />
+      <canvas
+        ref={canvasRef}
+        className="game-canvas"
+        aria-label="HS: Heist first-person game"
+        tabIndex={0}
+      />
+      {pointerState.state !== 'LOCKED' ? (
+        <button
+          type="button"
+          className="take-control"
+          onClick={() => void runtimeRef.current?.requestControl()}
+        >
+          <strong>{pointerState.state === 'DENIED' ? 'MOUSE CAPTURE DENIED' : 'TAKE CONTROL'}</strong>
+          <span>
+            {pointerState.message ?? 'Click to capture the mouse. A controller works without capture.'}
+          </span>
+        </button>
+      ) : null}
       {error ? (
         <div className="runtime-error" role="alert">
           <strong>3D RUNTIME OFFLINE</strong>

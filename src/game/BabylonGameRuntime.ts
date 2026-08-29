@@ -14,9 +14,14 @@ import { Scene } from '@babylonjs/core/scene';
 
 import type { AppServices } from '../app/createAppServices';
 import { ProceduralAudio } from '../audio/ProceduralAudio';
+import { PointerLockController, type PointerLockSnapshot } from './input/PointerLockController';
 import type { CharacterId, MissionSection } from './MissionStore';
 import { RuntimeVisualFactory, type RuntimeEnemy } from './RuntimeVisualFactory';
-import { choosePrioritizedTarget, shouldHoldForAgentTurn } from './runtimeLogic';
+import {
+  choosePrioritizedTarget,
+  shouldAdvanceMissionSimulation,
+  shouldHoldForAgentTurn,
+} from './runtimeLogic';
 import { CHASE_ROUTE, FACILITY_LAYOUT, type WorldPoint } from './worldLayout';
 
 export interface GameRuntimeStatus {
@@ -24,6 +29,7 @@ export interface GameRuntimeStatus {
   chaseProgress: number;
   prompt: string | null;
   pointerLocked: boolean;
+  pointerLock: PointerLockSnapshot;
 }
 
 interface RuntimeOptions {
@@ -63,6 +69,7 @@ export class BabylonGameRuntime {
   private readonly turnState = new Map<1 | 2, TurnRuntime>();
   private readonly prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   private readonly audio = new ProceduralAudio();
+  private readonly pointerLock: PointerLockController;
   private unsubscribeStore: (() => void) | null = null;
   private unsubscribeCoordinator: (() => void) | null = null;
   private lastHistoryEventId: string | null = null;
@@ -74,7 +81,6 @@ export class BabylonGameRuntime {
   private attackSequence = 0;
   private crouched = false;
   private alarmPlayed = false;
-  private hasTakenControl = false;
   private encounterAdvanceAt: number | null = null;
   private plantingStartedAt: number | null = null;
   private gateOpenedAt: number | null = null;
@@ -87,13 +93,8 @@ export class BabylonGameRuntime {
   private readonly onPointerDown = (event: PointerEvent) => this.handlePointerDown(event);
   private readonly onPointerUp = (event: PointerEvent) => this.handlePointerUp(event);
   private readonly onContextMenu = (event: MouseEvent) => event.preventDefault();
-  private readonly onPointerLock = () => {
-    if (document.pointerLockElement === this.options.canvas) this.hasTakenControl = true;
-    else this.pressed.delete('MouseRight');
-    this.emitStatus(true);
-  };
-
   constructor(private readonly options: RuntimeOptions) {
+    this.pointerLock = new PointerLockController(options.canvas, document);
     this.engine = new Engine(options.canvas, true, {
       preserveDrawingBuffer: false,
       stencil: true,
@@ -118,8 +119,15 @@ export class BabylonGameRuntime {
     options.canvas.addEventListener('pointerdown', this.onPointerDown);
     options.canvas.addEventListener('pointerup', this.onPointerUp);
     options.canvas.addEventListener('contextmenu', this.onContextMenu);
-    document.addEventListener('pointerlockchange', this.onPointerLock);
+    this.pointerLock.subscribe(() => {
+      this.pressed.delete('MouseRight');
+      this.emitStatus(true);
+    });
     this.engine.runRenderLoop(() => this.frame());
+  }
+
+  requestControl(): Promise<PointerLockSnapshot> {
+    return this.pointerLock.request();
   }
 
   dispose(): void {
@@ -133,8 +141,8 @@ export class BabylonGameRuntime {
     this.options.canvas.removeEventListener('pointerdown', this.onPointerDown);
     this.options.canvas.removeEventListener('pointerup', this.onPointerUp);
     this.options.canvas.removeEventListener('contextmenu', this.onContextMenu);
-    document.removeEventListener('pointerlockchange', this.onPointerLock);
-    if (document.pointerLockElement === this.options.canvas) void document.exitPointerLock();
+    this.pointerLock.release();
+    this.pointerLock.dispose();
     this.scene.dispose();
     this.engine.dispose();
     this.audio.dispose();
@@ -428,18 +436,16 @@ export class BabylonGameRuntime {
     this.options.services.store.tick();
     const snapshot = this.options.services.store.getSnapshot();
 
-    if (!snapshot.paused && snapshot.phase === 'MISSION') {
+    if (
+      shouldAdvanceMissionSimulation({
+        phase: snapshot.phase,
+        paused: snapshot.paused,
+        switching: snapshot.switching.state,
+      })
+    ) {
       this.updateCameraFeel(dt, snapshot.section);
-      if (snapshot.switching.state !== 'TRANSITION') {
-        if (
-          snapshot.section &&
-          FACILITY_SECTIONS.has(snapshot.section) &&
-          this.hasTakenControl
-        ) {
-          this.frameFacility(now, dt);
-        }
-        if (snapshot.section === 'CHASE') this.frameChase(now, dt);
-      }
+      if (snapshot.section && FACILITY_SECTIONS.has(snapshot.section)) this.frameFacility(now, dt);
+      if (snapshot.section === 'CHASE') this.frameChase(now, dt);
     }
     this.emitStatus(false);
     this.scene.render();
@@ -650,9 +656,12 @@ export class BabylonGameRuntime {
         this.audio.play('ALARM');
       }
     });
-    if (event.button === 2) this.pressed.add('MouseRight');
-    if (document.pointerLockElement !== this.options.canvas) {
-      void this.options.canvas.requestPointerLock();
+    if (event.button === 2) {
+      this.pressed.add('MouseRight');
+      this.pointerLock.setDragActive(true);
+    }
+    if (this.pointerLock.getSnapshot().state !== 'LOCKED') {
+      void this.pointerLock.request();
       return;
     }
     if (event.button !== 0) return;
@@ -670,7 +679,10 @@ export class BabylonGameRuntime {
   }
 
   private handlePointerUp(event: PointerEvent): void {
-    if (event.button === 2) this.pressed.delete('MouseRight');
+    if (event.button === 2) {
+      this.pressed.delete('MouseRight');
+      this.pointerLock.setDragActive(false);
+    }
   }
 
   private handleKeyDown(event: KeyboardEvent): void {
@@ -872,7 +884,12 @@ export class BabylonGameRuntime {
     this.lastStatusAt = now;
     const snapshot = this.options.services.store.getSnapshot();
     let prompt: string | null = null;
-    if (document.pointerLockElement !== this.options.canvas) prompt = 'CLICK TO TAKE CONTROL';
+    const pointerLock = this.pointerLock.getSnapshot();
+    if (pointerLock.state !== 'LOCKED') {
+      prompt = pointerLock.state === 'DENIED' || pointerLock.state === 'UNAVAILABLE'
+        ? 'MOUSE CAPTURE UNAVAILABLE — USE CONTROLLER OR HOLD RIGHT-CLICK TO LOOK'
+        : 'CLICK TO TAKE CONTROL';
+    }
     if (snapshot.bomb.state === 'ARMED') {
       prompt = this.options.services.director.isPartnerClearOfCharge()
         ? 'CODY CLEAR — PRESS E TO DETONATE'
@@ -883,7 +900,8 @@ export class BabylonGameRuntime {
       enemiesRemaining: this.enemies.filter((enemy) => enemy.alive).length,
       chaseProgress: this.chaseProgress,
       prompt,
-      pointerLocked: document.pointerLockElement === this.options.canvas,
+      pointerLocked: pointerLock.state === 'LOCKED',
+      pointerLock,
     });
   }
 }

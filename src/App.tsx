@@ -52,6 +52,7 @@ const initialRuntimeStatus: GameRuntimeStatus = {
   chaseProgress: 0,
   prompt: null,
   pointerLocked: false,
+  pointerLock: { state: 'IDLE', canRetry: true, dragFallback: true, message: null },
 };
 
 function detectCompatibility(): { reason: CompatibilityReason; detail: string } | null {
@@ -359,7 +360,7 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
           ? runtimeStatus.prompt.split('—').slice(1).join('—')
           : runtimeStatus.pointerLocked
             ? 'Keep moving. Your partner is reacting to the same mission state.'
-            : 'Click the scene to lock the mouse and take control.',
+            : runtimeStatus.pointerLock.message ?? 'Click the scene to lock the mouse and take control.',
       }
     : null;
 

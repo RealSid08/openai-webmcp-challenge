@@ -1,5 +1,13 @@
 import type { CharacterId } from './MissionStore';
 
+export function shouldAdvanceMissionSimulation(input: {
+  phase: string;
+  paused: boolean;
+  switching: string;
+}): boolean {
+  return input.phase === 'MISSION' && !input.paused && input.switching !== 'TRANSITION';
+}
+
 export interface PrioritizedTarget {
   id: string;
   health: number;

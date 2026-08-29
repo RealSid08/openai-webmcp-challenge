@@ -43,6 +43,35 @@
   background: #020405;
 }
 
+.take-control {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  bottom: 8rem;
+  display: grid;
+  gap: 0.25rem;
+  width: min(31rem, calc(100% - 2rem));
+  padding: 0.85rem 1rem;
+  color: var(--fog);
+  text-align: left;
+  background: rgb(3 8 9 / 88%);
+  border: 1px solid rgb(119 215 207 / 46%);
+  translate: -50% 0;
+  cursor: pointer;
+}
+
+.take-control strong {
+  color: var(--signal);
+  font-family: var(--font-stencil);
+  font-size: 0.72rem;
+  letter-spacing: 0.13em;
+}
+
+.take-control span {
+  color: var(--mist);
+  font-size: 0.75rem;
+}
+
 .runtime-error {
   position: absolute;
   inset: 50% auto auto 50%;

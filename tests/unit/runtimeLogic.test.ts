@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { choosePrioritizedTarget, shouldHoldForAgentTurn } from '../../src/game/runtimeLogic';
+import {
+  choosePrioritizedTarget,
+  shouldAdvanceMissionSimulation,
+  shouldHoldForAgentTurn,
+} from '../../src/game/runtimeLogic';
 
 const targets = [
   { id: 'pursuer-1', health: 40, distanceSquared: 25, alive: true },
@@ -9,6 +13,18 @@ const targets = [
 ];
 
 describe('runtime chase decisions', () => {
+  it('advances an active mission regardless of pointer-lock state', () => {
+    expect(
+      shouldAdvanceMissionSimulation({ phase: 'MISSION', paused: false, switching: 'READY' }),
+    ).toBe(true);
+    expect(
+      shouldAdvanceMissionSimulation({ phase: 'MISSION', paused: false, switching: 'TRANSITION' }),
+    ).toBe(false);
+    expect(
+      shouldAdvanceMissionSimulation({ phase: 'MISSION', paused: true, switching: 'READY' }),
+    ).toBe(false);
+  });
+
   it('holds the route only while the agent driver has an unresolved turn', () => {
     expect(shouldHoldForAgentTurn('CODY', 'CHASE_TURN_1')).toBe(true);
     expect(shouldHoldForAgentTurn('OWEN', 'CHASE_TURN_1')).toBe(false);
