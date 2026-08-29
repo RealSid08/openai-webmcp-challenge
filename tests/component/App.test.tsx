@@ -22,6 +22,24 @@ function createServices(now: () => number = () => 1_000) {
 }
 
 describe('App', () => {
+  it('publishes the direct agent operating brief in the page and shows pre-mission radio', async () => {
+    const services = createServices();
+    render(<App services={services} compatibility="SUPPORTED" />);
+
+    expect(screen.getByTestId('agent-partner-brief')).toHaveTextContent('Never start the heist');
+    services.coordinator.join('Codex');
+    act(() => {
+      services.coordinator.publish({
+        type: 'AGENT_RADIO',
+        summary: 'PLAN: You take the first move. I will cover the other lane.',
+      });
+    });
+
+    expect(await screen.findByText('You take the first move. I will cover the other lane.')).toBeVisible();
+    expect(services.store.getSnapshot().phase).toBe('PAIRING');
+    services.destroy();
+  });
+
   it('keeps the heist locked while no WebMCP partner has joined', () => {
     const services = createServices();
     render(<App services={services} compatibility="SUPPORTED" />);

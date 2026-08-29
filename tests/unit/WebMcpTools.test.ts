@@ -1,6 +1,7 @@
 import { MissionStore } from '../../src/game/MissionStore';
 import { MemoryRepository, type MemoryStorage } from '../../src/memory/MemoryRepository';
 import { PartnerCoordinator } from '../../src/partner/PartnerCoordinator';
+import { PARTNER_INSTRUCTIONS_TEXT } from '../../src/partner/partnerBrief';
 import {
   createWebMcpTools,
   registerWebMcpTools,
@@ -85,7 +86,20 @@ describe('WebMCP tool definitions', () => {
     const signal = new AbortController().signal;
 
     const joined = await byName.get('join_heist')!.execute({ agentName: 'Codex' }, { signal });
-    expect(joined).toMatchObject({ status: 'PARTNER_ONLINE', sessionId: 'session-webmcp' });
+    expect(joined).toMatchObject({
+      status: 'PARTNER_ONLINE',
+      sessionId: 'session-webmcp',
+      instructionsText: PARTNER_INSTRUCTIONS_TEXT,
+      humanStartsMission: true,
+      terminal: false,
+    });
+
+    const briefing = await byName.get('get_mission_briefing')!.execute({}, { signal });
+    expect(briefing).toMatchObject({
+      instructionsText: PARTNER_INSTRUCTIONS_TEXT,
+      humanStartsMission: true,
+      terminal: false,
+    });
 
     store.startMission();
     store.enterFacility();
@@ -108,6 +122,29 @@ describe('WebMCP tool definitions', () => {
     );
     controller.abort();
     await expect(waiting).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('allows agent radio teaching during pairing without starting the mission', async () => {
+    const { store, memory, coordinator } = createHarness();
+    const byName = new Map(
+      createWebMcpTools({ store, memory, coordinator }).map((tool) => [tool.name, tool]),
+    );
+    const signal = new AbortController().signal;
+    await byName.get('join_heist')!.execute({ agentName: 'Codex' }, { signal });
+
+    await expect(
+      byName.get('send_radio_message')!.execute(
+        {
+          sessionId: 'session-webmcp',
+          line: 'I am Cody. You start when ready; I will cover the other body.',
+          intent: 'PLAN',
+        },
+        { signal },
+      ),
+    ).resolves.toMatchObject({ ok: true, sequence: 1 });
+
+    expect(store.getSnapshot().phase).toBe('PAIRING');
+    expect(coordinator.getEvents().at(-1)?.summary).toContain('You start when ready');
   });
 
   it('makes a chase target-priority tool call observable to the game controller', async () => {

@@ -14,6 +14,7 @@ import { GameCanvas } from './app/GameCanvas';
 import type { AppServices } from './app/createAppServices';
 import { useMissionSnapshot } from './app/useMissionSnapshot';
 import { CompatibilityNotice, type CompatibilityReason } from './components/CompatibilityNotice';
+import { AgentPartnerBrief } from './components/AgentPartnerBrief';
 import { ControlsOverlay } from './components/ControlsOverlay';
 import { DebriefScreen } from './components/DebriefScreen';
 import { FailureScreen, type FailureCode } from './components/FailureScreen';
@@ -376,6 +377,7 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
 
   return (
     <div className={`app-shell ${missionVisible ? 'app-shell--mission' : ''}`}>
+      <AgentPartnerBrief />
       {atmosphere ? (
         <>
           <div className="fx fx--bays" aria-hidden="true" />
@@ -396,6 +398,7 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
           }}
           onOpenMemory={() => openMemory('NONE')}
           inputDevice={runtimeStatus.inputDevice}
+          radioLines={radioLines}
         />
       ) : null}
 

@@ -1,4 +1,5 @@
 import type { InputDevice } from '../game/input/inputBindings';
+import type { HudRadioLine } from './Hud';
 
 export type PairingScreenProps = {
   /** True only after a real WebMCP agent has completed `join_heist`. */
@@ -13,6 +14,7 @@ export type PairingScreenProps = {
   onContinueFromCheckpoint?: () => void;
   onOpenMemory?: () => void;
   inputDevice?: InputDevice;
+  radioLines?: readonly HudRadioLine[];
 };
 
 const CREW = [
@@ -56,8 +58,10 @@ export function PairingScreen({
   onContinueFromCheckpoint,
   onOpenMemory,
   inputDevice = 'KEYBOARD_MOUSE',
+  radioLines = [],
 }: PairingScreenProps) {
   const partnerLabel = partnerName?.trim() || 'The partner';
+  const visibleRadioLines = radioLines.slice(-2);
 
   return (
     <div className="pair">
@@ -146,6 +150,17 @@ export function PairingScreen({
               Partner memory
             </button>
           </div>
+
+          {visibleRadioLines.length > 0 ? (
+            <div className="pair__radio" aria-live="polite" aria-label="Partner radio">
+              {visibleRadioLines.map((line) => (
+                <p key={line.id} className={line.priority === 'CRITICAL' ? 'pair__radio-line pair__radio-line--critical' : 'pair__radio-line'}>
+                  <span>{line.speaker}</span>
+                  {line.text}
+                </p>
+              ))}
+            </div>
+          ) : null}
 
           {partnerOnline ? null : (
             <p className="pair__locknote" id="pair-lock-note">
