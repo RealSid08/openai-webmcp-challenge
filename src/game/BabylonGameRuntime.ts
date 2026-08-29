@@ -13,7 +13,7 @@ import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { Scene } from '@babylonjs/core/scene';
 
 import type { AppServices } from '../app/createAppServices';
-import { ProceduralAudio } from '../audio/ProceduralAudio';
+import { AdaptiveAudioDirector, type AudioSettings } from '../audio/AdaptiveAudioDirector';
 import { InputManager, type InputFrame } from './input/InputManager';
 import {
   chooseAimAssistTarget,
@@ -56,6 +56,7 @@ interface RuntimeOptions {
   canvas: HTMLCanvasElement;
   services: AppServices;
   onStatus: (status: GameRuntimeStatus) => void;
+  audioSettings: AudioSettings;
 }
 
 interface TurnRuntime {
@@ -88,7 +89,7 @@ export class BabylonGameRuntime {
   private readonly pressed = new Set<string>();
   private readonly turnState = new Map<1 | 2, TurnRuntime>();
   private readonly prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  private readonly audio = new ProceduralAudio();
+  private readonly audio = new AdaptiveAudioDirector();
   private readonly pointerLock: PointerLockController;
   private readonly input: InputManager;
   private readonly playerMotor = new PlayerMotor();
@@ -136,6 +137,7 @@ export class BabylonGameRuntime {
   private readonly onContextMenu = (event: MouseEvent) => event.preventDefault();
   constructor(private readonly options: RuntimeOptions) {
     this.pointerLock = new PointerLockController(options.canvas, document);
+    this.audio.setVolumes(options.audioSettings);
     this.input = new InputManager();
     this.tutorial = new TutorialDirector({
       completedBefore: window.localStorage.getItem('hs-heist:tutorial-complete') === '1',
@@ -173,6 +175,10 @@ export class BabylonGameRuntime {
 
   requestControl(): Promise<PointerLockSnapshot> {
     return this.pointerLock.request();
+  }
+
+  setAudioSettings(settings: AudioSettings): void {
+    this.audio.setVolumes(settings);
   }
 
   dispose(): void {
@@ -512,6 +518,19 @@ export class BabylonGameRuntime {
     this.options.services.store.tick();
     const snapshot = this.options.services.store.getSnapshot();
     this.lastInputFrame = this.input.poll();
+    const totalHealth = snapshot.characters.OWEN.health + snapshot.characters.CODY.health;
+    this.audio.update(
+      {
+        phase: snapshot.phase,
+        section: snapshot.section,
+        paused: snapshot.paused,
+        aliveEnemies: this.enemies.filter((enemy) => enemy.alive).length,
+        healthFraction: totalHealth / 200,
+        decisionPending: snapshot.requiredDecision !== null,
+        bombState: snapshot.bomb.state,
+      },
+      dt * 1_000,
+    );
 
     if (
       shouldAdvanceMissionSimulation({
@@ -609,7 +628,7 @@ export class BabylonGameRuntime {
     }
     if (snapshot.humanCharacter === 'OWEN' && now - this.lastPartnerShotAt > 1_250) {
       this.lastPartnerShotAt = now;
-      this.audio.play('SHOT');
+      this.audio.play('PARTNER_SHOT');
       this.damagePrioritizedEnemy(35);
     }
     if (now - this.lastEngineCueAt > 720) {
@@ -707,7 +726,7 @@ export class BabylonGameRuntime {
     if (!enemy) return;
     if (snapshot.partnerTactic === 'HOLD' && Vector3.Distance(enemy.mesh.position, this.partnerMesh.position) > 15) return;
     this.lastPartnerShotAt = now;
-    this.audio.play('SHOT');
+    this.audio.play('PARTNER_SHOT');
     this.damageEnemy(enemy, snapshot.partnerTactic === 'PROTECT' ? 60 : 48);
   }
 
@@ -752,7 +771,7 @@ export class BabylonGameRuntime {
     };
     const commands = this.enemyDirector.update(world, dt);
     this.enemyCombatRuntime.apply(commands, this.enemies, targetPositions, dt, {
-      onShot: () => this.audio.play('SHOT'),
+      onShot: () => this.audio.play('ENEMY_SHOT'),
       onHit: (command) => {
         if (this.options.services.store.getSnapshot().phase !== 'MISSION') return;
         this.audio.play('IMPACT');
@@ -761,6 +780,7 @@ export class BabylonGameRuntime {
           shotId: command.shotId,
         });
       },
+      onMiss: () => this.audio.play('NEAR_MISS'),
     });
     for (const enemy of this.enemies) {
       this.enemyDirector.syncPosition(enemy.id, {
@@ -941,6 +961,7 @@ export class BabylonGameRuntime {
 
     if (snapshot.section && FACILITY_SECTIONS.has(snapshot.section)) {
       const motor = this.playerMotor.update({ move: input.move, sprinting: input.sprinting }, dt);
+      if (motor.footstep) this.audio.play('FOOTSTEP');
       const cameraYaw = this.camera.rotation.y;
       const right = new Vector3(Math.cos(cameraYaw), 0, -Math.sin(cameraYaw));
       const forward = new Vector3(Math.sin(cameraYaw), 0, Math.cos(cameraYaw));
@@ -954,7 +975,10 @@ export class BabylonGameRuntime {
 
     if (input.reloadPressed) {
       const reloaded = this.options.services.store.reloadWeapon(snapshot.humanCharacter);
-      if (reloaded.ok) this.viewModel?.playReload();
+      if (reloaded.ok) {
+        this.viewModel?.playReload();
+        this.audio.play('RELOAD');
+      }
     }
     if (input.switchPressed) this.options.services.store.beginSwitch();
     if (
@@ -1018,9 +1042,12 @@ export class BabylonGameRuntime {
     if (snapshot.paused || snapshot.phase !== 'MISSION') return;
     if (snapshot.section === 'CHASE' && snapshot.humanCharacter !== 'CODY') return;
     const fired = this.options.services.store.fireWeapon(snapshot.humanCharacter);
-    if (!fired.ok) return;
+    if (!fired.ok) {
+      this.audio.play('EMPTY');
+      return;
+    }
     this.lastHumanShotAt = now;
-    this.audio.play('SHOT');
+    this.audio.play('HUMAN_SHOT');
     this.viewModel?.playFire();
     const ray = this.camera.getForwardRay(120);
     const hit = this.scene.pickWithRay(

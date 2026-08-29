@@ -2,7 +2,7 @@ import { createCuePlan } from '../../src/audio/ProceduralAudio';
 
 describe('procedural audio cue plans', () => {
   it('keeps every game cue original, bounded, and deterministic', () => {
-    const shot = createCuePlan('SHOT');
+    const shot = createCuePlan('HUMAN_SHOT');
     const explosion = createCuePlan('EXPLOSION');
     const radio = createCuePlan('RADIO');
 
@@ -11,7 +11,21 @@ describe('procedural audio cue plans', () => {
     expect(explosion.tones[0]?.endHz).toBeLessThan(explosion.tones[0]?.startHz ?? 0);
     expect(radio.tones).toHaveLength(2);
 
-    for (const cue of ['SHOT', 'IMPACT', 'EXPLOSION', 'ALARM', 'SWITCH', 'RADIO', 'ENGINE'] as const) {
+    for (const cue of [
+      'HUMAN_SHOT',
+      'PARTNER_SHOT',
+      'ENEMY_SHOT',
+      'FOOTSTEP',
+      'RELOAD',
+      'EMPTY',
+      'NEAR_MISS',
+      'IMPACT',
+      'EXPLOSION',
+      'ALARM',
+      'SWITCH',
+      'RADIO',
+      'ENGINE',
+    ] as const) {
       const plan = createCuePlan(cue);
       expect(plan.noiseMs).toBeLessThanOrEqual(900);
       expect(plan.gain).toBeGreaterThan(0);

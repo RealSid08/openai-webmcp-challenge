@@ -26,6 +26,7 @@ import { TitleSequence, type TitleStage } from './components/TitleSequence';
 import type { GameRuntimeStatus } from './game/BabylonGameRuntime';
 import type { CheckpointId, MissionFailure, MissionSection } from './game/MissionStore';
 import type { PartnerEvent } from './partner/PartnerCoordinator';
+import type { AudioSettings } from './audio/AdaptiveAudioDirector';
 
 export interface AppProps {
   services: AppServices;
@@ -65,6 +66,22 @@ const initialRuntimeStatus: GameRuntimeStatus = {
   },
   minimap: null,
 };
+
+const DEFAULT_AUDIO_SETTINGS: AudioSettings = { music: 0.65, effects: 0.82 };
+
+function loadAudioSettings(): AudioSettings {
+  try {
+    const saved = window.localStorage.getItem('hs-heist:audio-settings');
+    if (!saved) return DEFAULT_AUDIO_SETTINGS;
+    const value = JSON.parse(saved) as Partial<AudioSettings>;
+    return {
+      music: typeof value.music === 'number' ? Math.min(Math.max(value.music, 0), 1) : DEFAULT_AUDIO_SETTINGS.music,
+      effects: typeof value.effects === 'number' ? Math.min(Math.max(value.effects, 0), 1) : DEFAULT_AUDIO_SETTINGS.effects,
+    };
+  } catch {
+    return DEFAULT_AUDIO_SETTINGS;
+  }
+}
 
 function detectCompatibility(): { reason: CompatibilityReason; detail: string } | null {
   if (window.innerWidth < 960 || window.innerHeight < 600) {
@@ -153,6 +170,7 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
   const [runtimeStatus, setRuntimeStatus] = useState(initialRuntimeStatus);
   const [partnerEvents, setPartnerEvents] = useState(() => services.coordinator.getEvents());
   const [activeCallout, setActiveCallout] = useState<string | null>(null);
+  const [audioSettings, setAudioSettings] = useState(loadAudioSettings);
   const [, setMemoryRevision] = useState(0);
   const [, forceClockRender] = useState(0);
   const runStartedAt = useRef(Date.now());
@@ -181,6 +199,10 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
     );
     return () => window.clearInterval(timer);
   }, [services]);
+
+  useEffect(() => {
+    window.localStorage.setItem('hs-heist:audio-settings', JSON.stringify(audioSettings));
+  }, [audioSettings]);
 
   useEffect(() => {
     if (snapshot.runId && snapshot.runId !== previousRun.current) {
@@ -408,7 +430,7 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
 
       {missionVisible ? (
         <>
-          <GameCanvas services={services} onStatus={handleRuntimeStatus} />
+          <GameCanvas services={services} onStatus={handleRuntimeStatus} audioSettings={audioSettings} />
           <Hud
             characters={[
               {
@@ -521,6 +543,8 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
           onOpenMemory={() => openMemory('PAUSE')}
           onRestartCheckpoint={restartCheckpoint}
           onReturnToPairing={returnToPairing}
+          audio={audioSettings}
+          onAudioChange={setAudioSettings}
         />
       ) : null}
 

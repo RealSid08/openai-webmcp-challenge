@@ -199,6 +199,45 @@
   padding-inline: 1.1rem;
 }
 
+.audio-settings {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0.8rem;
+  border: 1px solid var(--bone-a12);
+  background: rgb(2 3 4 / 42%);
+}
+
+.audio-settings legend,
+.audio-settings label span {
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.14em;
+  color: var(--fog);
+  text-transform: uppercase;
+}
+
+.audio-settings label {
+  display: grid;
+  grid-template-columns: 7rem 1fr;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.audio-settings label span {
+  display: flex;
+  justify-content: space-between;
+}
+
+.audio-settings label b {
+  color: var(--amber);
+}
+
+.audio-settings input {
+  width: 100%;
+  accent-color: var(--amber);
+}
+
 /* ----------------------------------------------------------- memory view */
 
 .md {

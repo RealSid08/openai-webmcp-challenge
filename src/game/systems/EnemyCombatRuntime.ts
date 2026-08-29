@@ -10,6 +10,7 @@ import type { EnemyCommand } from './EnemyDirector';
 interface EnemyCombatCallbacks {
   onShot: (command: Extract<EnemyCommand, { type: 'FIRE_SHOT' }>) => void;
   onHit: (command: Extract<EnemyCommand, { type: 'FIRE_SHOT' }>) => void;
+  onMiss: (command: Extract<EnemyCommand, { type: 'FIRE_SHOT' }>) => void;
 }
 
 export class EnemyCombatRuntime {
@@ -47,6 +48,7 @@ export class EnemyCombatRuntime {
       this.renderShot(enemy, targetPositions[command.targetId], command.hit, command.shotId);
       callbacks.onShot(command);
       if (command.hit) callbacks.onHit(command);
+      else callbacks.onMiss(command);
     }
   }
 
