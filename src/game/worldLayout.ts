@@ -6,12 +6,35 @@ export interface WorldPoint {
 
 export const FACILITY_LAYOUT = {
   routeBounds: { minX: -9, maxX: 9, minZ: -4, maxZ: 58 },
+  startingCover: {
+    gapWidth: 6,
+    left: {
+      id: 'START_LEFT',
+      center: { x: -6.25, y: 2.6, z: 4 },
+      size: { width: 6.5, height: 5.2, depth: 0.7 },
+      protectsFrom: 'NORTH',
+    },
+    right: {
+      id: 'START_RIGHT',
+      center: { x: 6.25, y: 2.6, z: 4 },
+      size: { width: 6.5, height: 5.2, depth: 0.7 },
+      protectsFrom: 'NORTH',
+    },
+  },
+  navigationPath: [
+    { x: 0, y: 0, z: 1.5 },
+    { x: 0, y: 0, z: 8 },
+    { x: 0, y: 0, z: 18 },
+    { x: 0, y: 0, z: 24 },
+    { x: -1.5, y: 0, z: 36 },
+    { x: 0, y: 0, z: 48.5 },
+  ],
   encounters: [
     {
       id: 'FACILITY_ONE',
       bounds: { minZ: -2, maxZ: 20 },
-      playerStart: { x: -3.5, y: 1.7, z: 1 },
-      partnerStart: { x: 2.5, y: 0, z: 2 },
+      playerStart: { x: -5.5, y: 1.7, z: 1.2 },
+      partnerStart: { x: 5.5, y: 0, z: 1.6 },
       enemySpawns: [
         { x: -5.5, y: 0, z: 12 },
         { x: 4.5, y: 0, z: 15 },

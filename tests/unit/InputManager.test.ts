@@ -73,4 +73,14 @@ describe('InputManager', () => {
     expect(input.poll()).toMatchObject({ device: 'KEYBOARD_MOUSE', move: { x: 0, y: 1 } });
     input.dispose();
   });
+
+  it('reports a held training-skip input without making it edge-triggered', () => {
+    const input = new InputManager({ target: window, getGamepads: () => [] });
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyT' }));
+    expect(input.poll().skipTrainingHeld).toBe(true);
+    expect(input.poll().skipTrainingHeld).toBe(true);
+    window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyT' }));
+    expect(input.poll().skipTrainingHeld).toBe(false);
+    input.dispose();
+  });
 });

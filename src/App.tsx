@@ -54,6 +54,14 @@ const initialRuntimeStatus: GameRuntimeStatus = {
   pointerLocked: false,
   pointerLock: { state: 'IDLE', canRetry: true, dragFallback: true, message: null },
   inputDevice: 'KEYBOARD_MOUSE',
+  tutorial: {
+    active: true,
+    step: 'MOVE',
+    completed: false,
+    skipped: false,
+    refresher: false,
+    skipProgress: 0,
+  },
 };
 
 function detectCompatibility(): { reason: CompatibilityReason; detail: string } | null {

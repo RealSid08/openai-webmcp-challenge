@@ -11,6 +11,7 @@ export interface InputFrame {
   switchPressed: boolean;
   calloutPressed: boolean;
   pausePressed: boolean;
+  skipTrainingHeld: boolean;
   sprinting: boolean;
 }
 
@@ -57,6 +58,7 @@ export function sampleGamepad(
     switchPressed: edge(3),
     calloutPressed: edge(1),
     pausePressed: edge(9),
+    skipTrainingHeld: pressed(pad.buttons, 13),
     sprinting,
   };
 }
@@ -147,6 +149,7 @@ export class InputManager {
       switchPressed: edge('KeyQ'),
       calloutPressed: ['Digit1', 'Digit2', 'Digit3', 'Digit4'].some(edge),
       pausePressed: edge('Escape'),
+      skipTrainingHeld: this.keys.has('KeyT'),
       sprinting: this.sprinting,
     };
     this.keyEdges.clear();

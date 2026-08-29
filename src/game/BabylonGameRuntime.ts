@@ -31,6 +31,7 @@ import {
 } from './runtimeLogic';
 import { PlayerMotor } from './systems/PlayerMotor';
 import { CHASE_ROUTE, FACILITY_LAYOUT, type WorldPoint } from './worldLayout';
+import { TutorialDirector, type TutorialSnapshot } from '../tutorial/TutorialDirector';
 
 export interface GameRuntimeStatus {
   enemiesRemaining: number;
@@ -39,6 +40,7 @@ export interface GameRuntimeStatus {
   pointerLocked: boolean;
   pointerLock: PointerLockSnapshot;
   inputDevice: InputDevice;
+  tutorial: TutorialSnapshot;
 }
 
 interface RuntimeOptions {
@@ -81,6 +83,7 @@ export class BabylonGameRuntime {
   private readonly pointerLock: PointerLockController;
   private readonly input: InputManager;
   private readonly playerMotor = new PlayerMotor();
+  private readonly tutorial: TutorialDirector;
   private lastInputFrame: InputFrame = {
     device: 'KEYBOARD_MOUSE',
     move: { x: 0, y: 0 },
@@ -92,6 +95,7 @@ export class BabylonGameRuntime {
     switchPressed: false,
     calloutPressed: false,
     pausePressed: false,
+    skipTrainingHeld: false,
     sprinting: true,
   };
   private unsubscribeStore: (() => void) | null = null;
@@ -121,6 +125,9 @@ export class BabylonGameRuntime {
   constructor(private readonly options: RuntimeOptions) {
     this.pointerLock = new PointerLockController(options.canvas, document);
     this.input = new InputManager();
+    this.tutorial = new TutorialDirector({
+      completedBefore: window.localStorage.getItem('hs-heist:tutorial-complete') === '1',
+    });
     this.engine = new Engine(options.canvas, true, {
       preserveDrawingBuffer: false,
       stencil: true,
@@ -260,6 +267,21 @@ export class BabylonGameRuntime {
     this.visualFactory.box('left-wall', { width: 0.5, height: 8, depth: 64 }, new Vector3(-10, 3.5, 27), steel, true);
     this.visualFactory.box('right-wall', { width: 0.5, height: 8, depth: 64 }, new Vector3(10, 3.5, 27), steel, true);
     this.visualFactory.box('rear-wall', { width: 20, height: 8, depth: 0.5 }, new Vector3(0, 3.5, -4), steel, true);
+    const { left: startLeft, right: startRight } = FACILITY_LAYOUT.startingCover;
+    this.visualFactory.box(
+      'start-cover-left',
+      { width: startLeft.size.width, height: startLeft.size.height, depth: startLeft.size.depth },
+      new Vector3(startLeft.center.x, startLeft.center.y, startLeft.center.z),
+      panel,
+      true,
+    );
+    this.visualFactory.box(
+      'start-cover-right',
+      { width: startRight.size.width, height: startRight.size.height, depth: startRight.size.depth },
+      new Vector3(startRight.center.x, startRight.center.y, startRight.center.z),
+      panel,
+      true,
+    );
     this.visualFactory.box('kick-left', { width: 0.18, height: 0.55, depth: 63 }, new Vector3(-9.68, 0.28, 27), rust, false);
     this.visualFactory.box('kick-right', { width: 0.18, height: 0.55, depth: 63 }, new Vector3(9.68, 0.28, 27), rust, false);
     this.visualFactory.box('rail-left', { width: 0.12, height: 0.08, depth: 63 }, new Vector3(-9.62, 4.15, 27), cyan, false);
@@ -582,6 +604,7 @@ export class BabylonGameRuntime {
         this.buildForSnapshot();
         return;
       }
+      if (newest.type === 'SWITCH_COMPLETED') this.recordTutorialEvent('CHARACTER_SWITCHED');
     }
     if (snapshot.section !== this.currentSection) {
       this.buildForSnapshot();
@@ -657,6 +680,7 @@ export class BabylonGameRuntime {
   }
 
   private enemyCombat(now: number): void {
+    if (this.tutorial.getSnapshot().active) return;
     if (now - this.lastEnemyAttackAt < 1_700) return;
     const alive = this.enemies.filter((enemy) => enemy.alive);
     if (alive.length === 0) return;
@@ -715,6 +739,7 @@ export class BabylonGameRuntime {
     const callout = callouts[event.code];
     if (callout) {
       this.options.services.coordinator.publish({ type: 'HUMAN_CALLOUT', summary: callout });
+      this.recordTutorialEvent('CALLOUT_SENT');
     }
   }
 
@@ -825,7 +850,12 @@ export class BabylonGameRuntime {
     }
     if (input.calloutPressed && input.device !== 'KEYBOARD_MOUSE') {
       this.options.services.coordinator.publish({ type: 'HUMAN_CALLOUT', summary: 'COVER ME' });
+      this.recordTutorialEvent('CALLOUT_SENT');
     }
+    this.tutorial.updateSkipHeld(input.skipTrainingHeld, dt);
+    if (input.skipTrainingHeld) this.persistTutorialIfFinished();
+    if (Math.hypot(input.move.x, input.move.y) > 0.3) this.recordTutorialEvent('MOVED');
+    if (input.aim > 0.35 || this.pressed.has('MouseRight')) this.recordTutorialEvent('AIMED');
     if (input.fire > 0.5 && input.device !== 'KEYBOARD_MOUSE') this.fireHumanWeapon(now);
   }
 
@@ -881,8 +911,22 @@ export class BabylonGameRuntime {
       (mesh) => mesh.metadata?.kind === 'enemy' && mesh.isEnabled(),
     );
     const enemy = this.resolveEnemy(hit?.pickedMesh ?? null);
-    if (enemy) this.damageEnemy(enemy, snapshot.section === 'CHASE' ? 60 : 55);
+    if (enemy) {
+      this.damageEnemy(enemy, snapshot.section === 'CHASE' ? 60 : 55);
+      this.recordTutorialEvent('HIT_ENEMY');
+    }
     this.flashMuzzle();
+  }
+
+  private recordTutorialEvent(type: 'MOVED' | 'AIMED' | 'HIT_ENEMY' | 'CALLOUT_SENT' | 'CHARACTER_SWITCHED'): void {
+    this.tutorial.record({ type });
+    this.persistTutorialIfFinished();
+  }
+
+  private persistTutorialIfFinished(): void {
+    if (!this.tutorial.getSnapshot().active) {
+      window.localStorage.setItem('hs-heist:tutorial-complete', '1');
+    }
   }
 
   private configureChaseCamera(): void {
@@ -992,10 +1036,21 @@ export class BabylonGameRuntime {
     const snapshot = this.options.services.store.getSnapshot();
     let prompt: string | null = null;
     const pointerLock = this.pointerLock.getSnapshot();
-    if (pointerLock.state !== 'LOCKED') {
+    if (pointerLock.state !== 'LOCKED' && this.lastInputFrame.device === 'KEYBOARD_MOUSE') {
       prompt = pointerLock.state === 'DENIED' || pointerLock.state === 'UNAVAILABLE'
         ? 'MOUSE CAPTURE UNAVAILABLE — USE CONTROLLER OR HOLD RIGHT-CLICK TO LOOK'
         : 'CLICK TO TAKE CONTROL';
+    }
+    const tutorial = this.tutorial.getSnapshot();
+    if (tutorial.active && (pointerLock.state === 'LOCKED' || this.lastInputFrame.device !== 'KEYBOARD_MOUSE')) {
+      const trainingPrompts: Record<Exclude<TutorialSnapshot['step'], 'COMPLETE'>, string> = {
+        MOVE: 'TRAINING — MOVE FROM COVER · HOLD T OR DPAD DOWN TO SKIP',
+        AIM: 'TRAINING — AIM AT A HIGHLIGHTED GUARD',
+        FIRE: 'TRAINING — FIRE AND CONFIRM A HIT',
+        CALLOUT: 'TRAINING — SEND A PARTNER CALLOUT',
+        SWITCH: 'TRAINING — SWITCH CHARACTERS',
+      };
+      if (tutorial.step !== 'COMPLETE') prompt = trainingPrompts[tutorial.step];
     }
     if (snapshot.bomb.state === 'ARMED') {
       prompt = this.options.services.director.isPartnerClearOfCharge()
@@ -1010,6 +1065,7 @@ export class BabylonGameRuntime {
       pointerLocked: pointerLock.state === 'LOCKED',
       pointerLock,
       inputDevice: this.lastInputFrame.device,
+      tutorial,
     });
   }
 }
