@@ -88,6 +88,20 @@ describe('MissionStore mission lifecycle', () => {
     });
   });
 
+  it('records the concrete enemy and shot that caused firearm damage', () => {
+    const store = new MissionStore({ now: () => 3_200, createId: () => 'run-shot' });
+    store.joinPartner('Codex');
+    store.startMission();
+    store.enterFacility();
+
+    store.damageCharacter('OWEN', 6, 'ENEMY_FIRE', {
+      sourceId: 'guard-1',
+      shotId: 'enemy-shot-4',
+    });
+
+    expect(store.getSnapshot().history.at(-1)?.summary).toContain('guard-1 / enemy-shot-4');
+  });
+
   it('keeps two critical incidents recoverable and fails the third', () => {
     const store = new MissionStore({ now: () => 4_000, createId: () => 'run-3' });
     store.joinPartner('Codex');

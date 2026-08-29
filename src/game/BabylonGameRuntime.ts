@@ -30,6 +30,8 @@ import {
   shouldHoldForAgentTurn,
 } from './runtimeLogic';
 import { PlayerMotor } from './systems/PlayerMotor';
+import { EnemyCombatRuntime } from './systems/EnemyCombatRuntime';
+import { EnemyDirector, type EnemyWorldSnapshot } from './systems/EnemyDirector';
 import { CHASE_ROUTE, FACILITY_LAYOUT, type WorldPoint } from './worldLayout';
 import { TutorialDirector, type TutorialSnapshot } from '../tutorial/TutorialDirector';
 
@@ -83,6 +85,8 @@ export class BabylonGameRuntime {
   private readonly pointerLock: PointerLockController;
   private readonly input: InputManager;
   private readonly playerMotor = new PlayerMotor();
+  private enemyDirector = new EnemyDirector();
+  private enemyCombatRuntime: EnemyCombatRuntime | null = null;
   private readonly tutorial: TutorialDirector;
   private lastInputFrame: InputFrame = {
     device: 'KEYBOARD_MOUSE',
@@ -177,6 +181,7 @@ export class BabylonGameRuntime {
     this.pointerLock.release();
     this.pointerLock.dispose();
     this.input.dispose();
+    this.enemyCombatRuntime?.dispose();
     this.scene.dispose();
     this.engine.dispose();
     this.audio.dispose();
@@ -186,8 +191,11 @@ export class BabylonGameRuntime {
     const snapshot = this.options.services.store.getSnapshot();
     this.lastInputFrame = this.input.poll();
     const section = snapshot.section;
+    this.enemyCombatRuntime?.dispose();
     this.scene.dispose();
     this.scene = this.createBaseScene();
+    this.enemyCombatRuntime = new EnemyCombatRuntime(this.scene);
+    this.enemyDirector = new EnemyDirector();
     this.visualFactory = new RuntimeVisualFactory(this.scene);
     this.currentSection = section;
     this.representedHuman = snapshot.humanCharacter;
@@ -361,7 +369,15 @@ export class BabylonGameRuntime {
               { x: 5.5, y: 0, z: 42 },
               { x: 2.2, y: 0, z: 46 },
             ];
-    this.enemies = spawnPoints.map((point, index) => this.visualFactory.createEnemy(`guard-${section}-${index + 1}`, point));
+    this.enemies = spawnPoints.map((point, index) =>
+      this.visualFactory.createEnemy(`guard-${section}-${index + 1}`, point),
+    );
+    for (const enemy of this.enemies) {
+      this.enemyDirector.register({
+        id: enemy.id,
+        position: { x: enemy.mesh.position.x, z: enemy.mesh.position.z },
+      });
+    }
   }
 
   private buildChase(): void {
@@ -504,7 +520,7 @@ export class BabylonGameRuntime {
     this.characterPositions[snapshot.humanCharacter] = this.camera.position.clone();
     this.movePartner(dt);
     this.partnerCombat(now);
-    this.enemyCombat(now);
+    this.updateEnemyCombat(dt);
 
     const alive = this.enemies.filter((enemy) => enemy.alive).length;
     if (
@@ -679,19 +695,84 @@ export class BabylonGameRuntime {
     this.damageEnemy(enemy, snapshot.partnerTactic === 'PROTECT' ? 60 : 48);
   }
 
-  private enemyCombat(now: number): void {
-    if (this.tutorial.getSnapshot().active) return;
-    if (now - this.lastEnemyAttackAt < 1_700) return;
-    const alive = this.enemies.filter((enemy) => enemy.alive);
-    if (alive.length === 0) return;
-    this.lastEnemyAttackAt = now;
+  private updateEnemyCombat(dt: number): void {
+    if (!this.enemyCombatRuntime || this.enemies.every((enemy) => !enemy.alive)) return;
     const snapshot = this.options.services.store.getSnapshot();
     const partnerId: CharacterId = snapshot.humanCharacter === 'OWEN' ? 'CODY' : 'OWEN';
-    const target = snapshot.partnerTactic === 'PROTECT' && this.attackSequence++ % 3 !== 0
-      ? partnerId
-      : snapshot.humanCharacter;
-    this.audio.play('IMPACT');
-    this.options.services.store.damageCharacter(target, 4 + (this.attackSequence % 3), 'ENEMY_FIRE');
+    const targetPositions: Record<CharacterId, Vector3> = {
+      OWEN: this.characterPositions.OWEN.clone(),
+      CODY: this.characterPositions.CODY.clone(),
+    };
+    targetPositions[snapshot.humanCharacter] = this.camera.position.clone();
+    if (this.partnerMesh) {
+      targetPositions[partnerId] = this.partnerMesh.position.add(new Vector3(0, 0.75, 0));
+    }
+    const encounter = snapshot.section === 'FACILITY_ONE'
+      ? FACILITY_LAYOUT.encounters[0]
+      : FACILITY_LAYOUT.encounters[1];
+    const world: EnemyWorldSnapshot = {
+      tutorialProtected: this.tutorial.getSnapshot().active,
+      targets: (['OWEN', 'CODY'] as const).map((id) => ({
+        id,
+        position: { x: targetPositions[id].x, z: targetPositions[id].z },
+        health: snapshot.characters[id].health,
+        moving: id === snapshot.humanCharacter
+          ? Math.hypot(this.lastInputFrame.move.x, this.lastInputFrame.move.y) > 0.2
+          : snapshot.partnerTactic !== 'HOLD',
+        exposed: this.enemies.some((enemy) =>
+          enemy.alive && this.hasEnemyLineOfSight(enemy.id, id, targetPositions),
+        ),
+      })),
+      covers: encounter.coverNodes.map((point, index) => ({
+        id: `${encounter.id}-cover-${index}`,
+        position: { x: point.x, z: point.z },
+        occupied: this.enemies.some(
+          (enemy) => enemy.alive && Vector3.DistanceSquared(enemy.mesh.position, new Vector3(point.x, enemy.mesh.position.y, point.z)) < 1,
+        ),
+        exposure: index % 2 === 0 ? 0.2 : 0.42,
+      })),
+      hasLineOfSight: (enemyId, targetId) =>
+        this.hasEnemyLineOfSight(enemyId, targetId, targetPositions),
+    };
+    const commands = this.enemyDirector.update(world, dt);
+    this.enemyCombatRuntime.apply(commands, this.enemies, targetPositions, dt, {
+      onShot: () => this.audio.play('SHOT'),
+      onHit: (command) => {
+        if (this.options.services.store.getSnapshot().phase !== 'MISSION') return;
+        this.audio.play('IMPACT');
+        this.options.services.store.damageCharacter(command.targetId, command.damage, 'ENEMY_FIRE', {
+          sourceId: command.enemyId,
+          shotId: command.shotId,
+        });
+      },
+    });
+    for (const enemy of this.enemies) {
+      this.enemyDirector.syncPosition(enemy.id, {
+        x: enemy.mesh.position.x,
+        z: enemy.mesh.position.z,
+      });
+    }
+  }
+
+  private hasEnemyLineOfSight(
+    enemyId: string,
+    targetId: CharacterId,
+    targetPositions: Readonly<Record<CharacterId, Vector3>>,
+  ): boolean {
+    const enemy = this.enemies.find((candidate) => candidate.id === enemyId && candidate.alive);
+    if (!enemy) return false;
+    const origin = enemy.mesh.position.add(new Vector3(0, 0.7, 0));
+    const offset = targetPositions[targetId].subtract(origin);
+    const distance = offset.length();
+    if (distance <= 0.1 || distance > 58) return false;
+    const hit = this.scene.pickWithRay(
+      new Ray(origin, offset.scale(1 / distance), distance - 0.15),
+      (mesh) =>
+        mesh.isPickable &&
+        mesh.isEnabled() &&
+        !(mesh.metadata?.kind === 'enemy' && mesh.metadata?.id === enemyId),
+    );
+    return !hit?.hit;
   }
 
   private handlePointerDown(event: PointerEvent): void {
@@ -1000,6 +1081,7 @@ export class BabylonGameRuntime {
     }
     if (enemy.health > 0) return;
     enemy.alive = false;
+    this.enemyDirector.markDead(enemy.id);
     enemy.mesh.setEnabled(false);
     this.options.services.coordinator.publish({
       type: 'THREAT_NEUTRALIZED',

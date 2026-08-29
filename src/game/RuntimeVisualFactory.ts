@@ -11,6 +11,7 @@ import type { WorldPoint } from './worldLayout';
 export interface RuntimeEnemy {
   id: string;
   mesh: Mesh;
+  muzzle: Mesh;
   health: number;
   alive: boolean;
 }
@@ -64,7 +65,17 @@ export class RuntimeVisualFactory {
       pickable: true,
       enemyId: id,
     });
-    return { id, mesh, health: 100, alive: true };
+    const muzzle = this.box(
+      `${id}-muzzle`,
+      { width: 0.05, height: 0.05, depth: 0.05 },
+      new Vector3(0.32, 0.08, 0.82),
+      this.material('enemy-muzzle', new Color3(0.8, 0.15, 0.03), 0.1, new Color3(0.9, 0.08, 0.01)),
+      false,
+    );
+    muzzle.parent = mesh;
+    muzzle.visibility = 0;
+    muzzle.isPickable = false;
+    return { id, mesh, muzzle, health: 100, alive: true };
   }
 
   createPursuer(id: string, point: WorldPoint): RuntimeEnemy {
@@ -83,7 +94,11 @@ export class RuntimeVisualFactory {
       this.tagEnemy(lamp, id);
     }
     this.tagEnemy(cabin, id);
-    return { id, mesh, health: 100, alive: true };
+    const muzzle = this.box(`${id}-muzzle`, { width: 0.08, height: 0.08, depth: 0.08 }, new Vector3(0, 0.55, 2.35), tail, false);
+    muzzle.parent = mesh;
+    muzzle.visibility = 0;
+    muzzle.isPickable = false;
+    return { id, mesh, muzzle, health: 100, alive: true };
   }
 
   createCover(name: string, node: WorldPoint, index: number): void {

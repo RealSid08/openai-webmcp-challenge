@@ -222,6 +222,7 @@ export class MissionStore {
     character: CharacterId,
     amount: number,
     cause: 'ENEMY_FIRE' | 'EXPLOSION',
+    source?: { sourceId: string; shotId: string },
   ): { ok: true; applied: number; protected?: true } {
     if (this.snapshot.switching.state === 'TRANSITION') {
       return { ok: true, applied: 0, protected: true };
@@ -251,7 +252,7 @@ export class MissionStore {
     this.commit(
       next,
       health === 0 ? 'CHARACTER_DOWN' : 'CHARACTER_DAMAGED',
-      `${character} took ${applied} damage from ${cause}.`,
+      `${character} took ${applied} damage from ${cause}${source ? ` (${source.sourceId} / ${source.shotId})` : ''}.`,
       health === 0,
     );
     return { ok: true, applied };
