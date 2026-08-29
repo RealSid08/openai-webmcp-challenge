@@ -1,5 +1,12 @@
 import { useEffect, useRef } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
+import {
+  getControlGroups,
+  type ControlGroup,
+  type InputDevice,
+} from '../game/input/inputBindings';
+
+export type { ControlBinding, ControlGroup } from '../game/input/inputBindings';
 
 const FOCUSABLE =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -51,17 +58,6 @@ export function useDialogFocus<T extends HTMLElement>(onDismiss?: () => void) {
   return { ref, onKeyDown };
 }
 
-export interface ControlBinding {
-  keys: string;
-  action: string;
-  note?: string;
-}
-
-export interface ControlGroup {
-  title: string;
-  bindings: readonly ControlBinding[];
-}
-
 export interface ControlsOverlayProps {
   /**
    * `FIRST_RUN` is the in-cover overview that holds combat pressure back.
@@ -69,54 +65,23 @@ export interface ControlsOverlayProps {
    */
   variant?: 'FIRST_RUN' | 'REFERENCE';
   groups?: readonly ControlGroup[];
+  device?: InputDevice;
   onDismiss: () => void;
   dismissLabel?: string;
 }
 
-export const DEFAULT_CONTROL_GROUPS: readonly ControlGroup[] = [
-  {
-    title: 'On foot',
-    bindings: [
-      { keys: 'W A S D', action: 'Move' },
-      { keys: 'Shift', action: 'Sprint' },
-      { keys: 'Ctrl', action: 'Crouch behind cover' },
-      { keys: 'Mouse', action: 'Look' },
-    ],
-  },
-  {
-    title: 'Weapon',
-    bindings: [
-      { keys: 'Right mouse', action: 'Aim' },
-      { keys: 'Left mouse', action: 'Fire' },
-      { keys: 'R', action: 'Reload', note: 'Reserve rounds only' },
-      { keys: 'E', action: 'Interact, plant, detonate', note: 'When the prompt is shown' },
-    ],
-  },
-  {
-    title: 'The partner',
-    bindings: [
-      { keys: 'Q', action: 'Switch bodies', note: 'Your partner inherits the one you leave' },
-      { keys: '1 – 4', action: 'Quick callouts', note: 'Cover me, hold, move, focus target' },
-      { keys: 'Voice or text', action: 'Talk to your partner through ChatGPT or Codex' },
-    ],
-  },
-  {
-    title: 'Mission',
-    bindings: [
-      { keys: 'Esc', action: 'Pause' },
-      { keys: 'M', action: 'Partner memory' },
-    ],
-  },
-];
+export const DEFAULT_CONTROL_GROUPS = getControlGroups('KEYBOARD_MOUSE');
 
 export function ControlsOverlay({
   variant = 'REFERENCE',
-  groups = DEFAULT_CONTROL_GROUPS,
+  groups,
+  device = 'KEYBOARD_MOUSE',
   onDismiss,
   dismissLabel,
 }: ControlsOverlayProps) {
   const { ref, onKeyDown } = useDialogFocus<HTMLDivElement>(onDismiss);
   const firstRun = variant === 'FIRST_RUN';
+  const visibleGroups = groups ?? getControlGroups(device);
 
   return (
     <div className="scrim scrim--controls">
@@ -143,7 +108,7 @@ export function ControlsOverlay({
         </header>
 
         <div className="ctrlgrid">
-          {groups.map((group) => (
+          {visibleGroups.map((group) => (
             <section className="ctrlgroup" key={group.title}>
               <h3 className="ctrlgroup__title">{group.title}</h3>
               <dl className="ctrlgroup__list">

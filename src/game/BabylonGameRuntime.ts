@@ -14,6 +14,8 @@ import { Scene } from '@babylonjs/core/scene';
 
 import type { AppServices } from '../app/createAppServices';
 import { ProceduralAudio } from '../audio/ProceduralAudio';
+import { InputManager, type InputFrame } from './input/InputManager';
+import type { InputDevice } from './input/inputBindings';
 import { PointerLockController, type PointerLockSnapshot } from './input/PointerLockController';
 import type { CharacterId, MissionSection } from './MissionStore';
 import { RuntimeVisualFactory, type RuntimeEnemy } from './RuntimeVisualFactory';
@@ -30,6 +32,7 @@ export interface GameRuntimeStatus {
   prompt: string | null;
   pointerLocked: boolean;
   pointerLock: PointerLockSnapshot;
+  inputDevice: InputDevice;
 }
 
 interface RuntimeOptions {
@@ -70,6 +73,20 @@ export class BabylonGameRuntime {
   private readonly prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   private readonly audio = new ProceduralAudio();
   private readonly pointerLock: PointerLockController;
+  private readonly input: InputManager;
+  private lastInputFrame: InputFrame = {
+    device: 'KEYBOARD_MOUSE',
+    move: { x: 0, y: 0 },
+    look: { x: 0, y: 0 },
+    aim: 0,
+    fire: 0,
+    reloadPressed: false,
+    interactPressed: false,
+    switchPressed: false,
+    calloutPressed: false,
+    pausePressed: false,
+    sprinting: true,
+  };
   private unsubscribeStore: (() => void) | null = null;
   private unsubscribeCoordinator: (() => void) | null = null;
   private lastHistoryEventId: string | null = null;
@@ -95,6 +112,7 @@ export class BabylonGameRuntime {
   private readonly onContextMenu = (event: MouseEvent) => event.preventDefault();
   constructor(private readonly options: RuntimeOptions) {
     this.pointerLock = new PointerLockController(options.canvas, document);
+    this.input = new InputManager({ consumePointerDelta: () => this.pointerLock.consumeDragDelta() });
     this.engine = new Engine(options.canvas, true, {
       preserveDrawingBuffer: false,
       stencil: true,
@@ -143,6 +161,7 @@ export class BabylonGameRuntime {
     this.options.canvas.removeEventListener('contextmenu', this.onContextMenu);
     this.pointerLock.release();
     this.pointerLock.dispose();
+    this.input.dispose();
     this.scene.dispose();
     this.engine.dispose();
     this.audio.dispose();
@@ -150,6 +169,7 @@ export class BabylonGameRuntime {
 
   private buildForSnapshot(): void {
     const snapshot = this.options.services.store.getSnapshot();
+    this.lastInputFrame = this.input.poll();
     const section = snapshot.section;
     this.scene.dispose();
     this.scene = this.createBaseScene();
@@ -902,6 +922,7 @@ export class BabylonGameRuntime {
       prompt,
       pointerLocked: pointerLock.state === 'LOCKED',
       pointerLock,
+      inputDevice: this.lastInputFrame.device,
     });
   }
 }

@@ -53,6 +53,7 @@ const initialRuntimeStatus: GameRuntimeStatus = {
   prompt: null,
   pointerLocked: false,
   pointerLock: { state: 'IDLE', canRetry: true, dragFallback: true, message: null },
+  inputDevice: 'KEYBOARD_MOUSE',
 };
 
 function detectCompatibility(): { reason: CompatibilityReason; detail: string } | null {
@@ -385,6 +386,7 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
             if (savedCheckpoint) services.store.continueFromCheckpoint(savedCheckpoint.checkpoint, savedCheckpoint.runId);
           }}
           onOpenMemory={() => openMemory('NONE')}
+          inputDevice={runtimeStatus.inputDevice}
         />
       ) : null}
 
@@ -512,6 +514,7 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
       {overlay === 'CONTROLS' ? (
         <ControlsOverlay
           variant={overlayReturn === 'NONE' && snapshot.section === 'FACILITY_ONE' ? 'FIRST_RUN' : 'REFERENCE'}
+          device={runtimeStatus.inputDevice}
           onDismiss={closeSecondaryOverlay}
         />
       ) : null}

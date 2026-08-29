@@ -1,3 +1,5 @@
+import type { InputDevice } from '../game/input/inputBindings';
+
 export type PairingScreenProps = {
   /** True only after a real WebMCP agent has completed `join_heist`. */
   partnerOnline?: boolean;
@@ -10,6 +12,7 @@ export type PairingScreenProps = {
   onStartHeist?: () => void;
   onContinueFromCheckpoint?: () => void;
   onOpenMemory?: () => void;
+  inputDevice?: InputDevice;
 };
 
 const CREW = [
@@ -52,6 +55,7 @@ export function PairingScreen({
   onStartHeist,
   onContinueFromCheckpoint,
   onOpenMemory,
+  inputDevice = 'KEYBOARD_MOUSE',
 }: PairingScreenProps) {
   const partnerLabel = partnerName?.trim() || 'The partner';
 
@@ -166,7 +170,10 @@ export function PairingScreen({
       </main>
 
       <footer className="pair__rail pair__rail--bottom">
-        <span>Desktop · Keyboard + mouse</span>
+        <span>
+          Best experienced with a controller or external mouse
+          {inputDevice === 'KEYBOARD_MOUSE' ? '' : ` · ${inputDevice === 'PLAYSTATION' ? 'PlayStation' : inputDevice === 'XBOX' ? 'Xbox' : 'Controller'} active`}
+        </span>
         <span className="pair__rail-item--optional">No solo mode</span>
         <span className="pair__rail-spacer" />
         <span className="pair__rail-item--optional">
