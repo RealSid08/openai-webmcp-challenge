@@ -1,6 +1,6 @@
 import { UniversalCamera } from '@babylonjs/core/Cameras/universalCamera';
 import '@babylonjs/core/Collisions/collisionCoordinator';
-import '@babylonjs/core/Culling/ray';
+import { Ray } from '@babylonjs/core/Culling/ray';
 import { Engine } from '@babylonjs/core/Engines/engine';
 import { GlowLayer } from '@babylonjs/core/Layers/glowLayer';
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
@@ -15,6 +15,11 @@ import { Scene } from '@babylonjs/core/scene';
 import type { AppServices } from '../app/createAppServices';
 import { ProceduralAudio } from '../audio/ProceduralAudio';
 import { InputManager, type InputFrame } from './input/InputManager';
+import {
+  chooseAimAssistTarget,
+  computeAimAssistCorrection,
+  type AimAssistCandidate,
+} from './input/aimAssist';
 import type { InputDevice } from './input/inputBindings';
 import { PointerLockController, type PointerLockSnapshot } from './input/PointerLockController';
 import type { CharacterId, MissionSection } from './MissionStore';
@@ -24,6 +29,7 @@ import {
   shouldAdvanceMissionSimulation,
   shouldHoldForAgentTurn,
 } from './runtimeLogic';
+import { PlayerMotor } from './systems/PlayerMotor';
 import { CHASE_ROUTE, FACILITY_LAYOUT, type WorldPoint } from './worldLayout';
 
 export interface GameRuntimeStatus {
@@ -74,6 +80,7 @@ export class BabylonGameRuntime {
   private readonly audio = new ProceduralAudio();
   private readonly pointerLock: PointerLockController;
   private readonly input: InputManager;
+  private readonly playerMotor = new PlayerMotor();
   private lastInputFrame: InputFrame = {
     device: 'KEYBOARD_MOUSE',
     move: { x: 0, y: 0 },
@@ -93,10 +100,11 @@ export class BabylonGameRuntime {
   private lastFrameAt = performance.now();
   private lastEnemyAttackAt = 0;
   private lastPartnerShotAt = 0;
+  private lastHumanShotAt = 0;
   private lastEngineCueAt = 0;
   private lastStatusAt = 0;
   private attackSequence = 0;
-  private crouched = false;
+  private lastCameraBob = 0;
   private alarmPlayed = false;
   private encounterAdvanceAt: number | null = null;
   private plantingStartedAt: number | null = null;
@@ -112,7 +120,7 @@ export class BabylonGameRuntime {
   private readonly onContextMenu = (event: MouseEvent) => event.preventDefault();
   constructor(private readonly options: RuntimeOptions) {
     this.pointerLock = new PointerLockController(options.canvas, document);
-    this.input = new InputManager({ consumePointerDelta: () => this.pointerLock.consumeDragDelta() });
+    this.input = new InputManager();
     this.engine = new Engine(options.canvas, true, {
       preserveDrawingBuffer: false,
       stencil: true,
@@ -190,7 +198,8 @@ export class BabylonGameRuntime {
     this.lastPartnerShotAt = sceneStartedAt;
     this.lastEngineCueAt = sceneStartedAt;
     this.attackSequence = 0;
-    this.crouched = false;
+    this.lastCameraBob = 0;
+    this.playerMotor.reset();
 
     if (section && FACILITY_SECTIONS.has(section)) this.buildFacility(section);
     if (section === 'CHASE') this.buildChase();
@@ -224,17 +233,12 @@ export class BabylonGameRuntime {
     this.camera.minZ = 0.05;
     this.camera.maxZ = 600;
     this.camera.fov = 1.05;
-    this.camera.speed = 0.34;
-    this.camera.inertia = 0.5;
-    this.camera.angularSensibility = 2_600;
+    this.camera.speed = 0;
+    this.camera.inertia = 0;
     this.camera.applyGravity = true;
     this.camera.checkCollisions = true;
     this.camera.ellipsoid = new Vector3(0.45, 0.85, 0.45);
-    this.camera.keysUp = [87, 38];
-    this.camera.keysDown = [83, 40];
-    this.camera.keysLeft = [65, 37];
-    this.camera.keysRight = [68, 39];
-    this.camera.attachControl(this.options.canvas, true);
+    this.camera.detachControl();
     scene.activeCamera = this.camera;
     return scene;
   }
@@ -455,6 +459,7 @@ export class BabylonGameRuntime {
     this.lastFrameAt = now;
     this.options.services.store.tick();
     const snapshot = this.options.services.store.getSnapshot();
+    this.lastInputFrame = this.input.poll();
 
     if (
       shouldAdvanceMissionSimulation({
@@ -463,6 +468,7 @@ export class BabylonGameRuntime {
         switching: snapshot.switching.state,
       })
     ) {
+      this.updateHumanInput(this.lastInputFrame, dt, now);
       this.updateCameraFeel(dt, snapshot.section);
       if (snapshot.section && FACILITY_SECTIONS.has(snapshot.section)) this.frameFacility(now, dt);
       if (snapshot.section === 'CHASE') this.frameChase(now, dt);
@@ -684,18 +690,7 @@ export class BabylonGameRuntime {
       void this.pointerLock.request();
       return;
     }
-    if (event.button !== 0) return;
-    const snapshot = this.options.services.store.getSnapshot();
-    if (snapshot.paused || snapshot.phase !== 'MISSION') return;
-    if (snapshot.section === 'CHASE' && snapshot.humanCharacter !== 'CODY') return;
-    const fired = this.options.services.store.fireWeapon(snapshot.humanCharacter);
-    if (!fired.ok) return;
-    this.audio.play('SHOT');
-    const ray = this.camera.getForwardRay(120);
-    const hit = this.scene.pickWithRay(ray, (mesh) => mesh.metadata?.kind === 'enemy' && mesh.isEnabled());
-    const enemy = this.resolveEnemy(hit?.pickedMesh ?? null);
-    if (enemy) this.damageEnemy(enemy, snapshot.section === 'CHASE' ? 60 : 55);
-    this.flashMuzzle();
+    if (event.button === 0) this.fireHumanWeapon(performance.now());
   }
 
   private handlePointerUp(event: PointerEvent): void {
@@ -711,12 +706,6 @@ export class BabylonGameRuntime {
       event.preventDefault();
     }
     if (event.repeat) return;
-    const snapshot = this.options.services.store.getSnapshot();
-    if (event.code === 'KeyR') this.options.services.store.reloadWeapon(snapshot.humanCharacter);
-    if (event.code === 'KeyQ') this.options.services.store.beginSwitch();
-    if (event.code === 'KeyE' && snapshot.section === 'BOMB_GATE' && snapshot.bomb.state === 'ARMED') {
-      this.options.services.director.detonateCharge();
-    }
     const callouts: Record<string, string> = {
       Digit1: 'COVER ME',
       Digit2: 'HOLD',
@@ -785,17 +774,115 @@ export class BabylonGameRuntime {
   }
 
   private updateCameraFeel(dt: number, section: MissionSection | null): void {
-    const aiming = this.pressed.has('MouseRight');
+    const aiming = this.lastInputFrame.aim > 0.35 || this.pressed.has('MouseRight');
     const desiredFov = aiming ? 0.78 : 1.05;
     this.camera.fov += (desiredFov - this.camera.fov) * Math.min(1, dt * 12);
     if (!section || !FACILITY_SECTIONS.has(section)) return;
+  }
 
-    this.camera.speed = this.pressed.has('ShiftLeft') || this.pressed.has('ShiftRight') ? 0.52 : 0.34;
-    const wantsCrouch = this.pressed.has('ControlLeft') || this.pressed.has('ControlRight');
-    if (wantsCrouch === this.crouched) return;
-    this.crouched = wantsCrouch;
-    this.camera.ellipsoid.y = wantsCrouch ? 0.55 : 0.85;
-    this.camera.position.y += wantsCrouch ? -0.5 : 0.5;
+  private updateHumanInput(input: InputFrame, dt: number, now: number): void {
+    const snapshot = this.options.services.store.getSnapshot();
+    const pointerActive =
+      this.pointerLock.getSnapshot().state === 'LOCKED' || this.pressed.has('MouseRight');
+    if (input.device !== 'KEYBOARD_MOUSE' || pointerActive) {
+      const lookScale = input.device === 'KEYBOARD_MOUSE' ? 0.00165 : dt * 2.35;
+      let yaw = input.look.x * lookScale;
+      let pitch = input.look.y * lookScale;
+      if (input.device !== 'KEYBOARD_MOUSE') {
+        const assist = computeAimAssistCorrection(this.findAimAssistTarget(input.aim > 0.35), {
+          inputDevice: input.device,
+          aiming: input.aim > 0.35,
+          deltaSeconds: dt,
+        });
+        yaw = yaw * assist.slowdown + assist.yaw;
+        pitch = pitch * assist.slowdown + assist.pitch;
+      }
+      this.camera.rotation.y += yaw;
+      this.camera.rotation.x = Math.min(Math.max(this.camera.rotation.x - pitch, -1.35), 1.35);
+    }
+
+    if (snapshot.section && FACILITY_SECTIONS.has(snapshot.section)) {
+      const motor = this.playerMotor.update({ move: input.move, sprinting: input.sprinting }, dt);
+      const cameraYaw = this.camera.rotation.y;
+      const right = new Vector3(Math.cos(cameraYaw), 0, -Math.sin(cameraYaw));
+      const forward = new Vector3(Math.sin(cameraYaw), 0, Math.cos(cameraYaw));
+      this.camera.cameraDirection.addInPlace(
+        right.scale(motor.delta.x).add(forward.scale(motor.delta.y)),
+      );
+      this.camera.position.y += motor.camera.bobY - this.lastCameraBob;
+      this.lastCameraBob = motor.camera.bobY;
+      this.camera.rotation.z = motor.camera.lean;
+    }
+
+    if (input.reloadPressed) this.options.services.store.reloadWeapon(snapshot.humanCharacter);
+    if (input.switchPressed) this.options.services.store.beginSwitch();
+    if (
+      input.interactPressed &&
+      snapshot.section === 'BOMB_GATE' &&
+      snapshot.bomb.state === 'ARMED'
+    ) {
+      this.options.services.director.detonateCharge();
+    }
+    if (input.calloutPressed && input.device !== 'KEYBOARD_MOUSE') {
+      this.options.services.coordinator.publish({ type: 'HUMAN_CALLOUT', summary: 'COVER ME' });
+    }
+    if (input.fire > 0.5 && input.device !== 'KEYBOARD_MOUSE') this.fireHumanWeapon(now);
+  }
+
+  private findAimAssistTarget(aiming: boolean): AimAssistCandidate | null {
+    const forward = this.camera.getForwardRay(1).direction.normalize();
+    const candidates = this.enemies
+      .filter((enemy) => enemy.alive)
+      .map((enemy): AimAssistCandidate => {
+        const offset = enemy.mesh.position
+          .add(new Vector3(0, 1.1, 0))
+          .subtract(this.camera.position);
+        const distance = offset.length();
+        const direction = distance > 0 ? offset.scale(1 / distance) : forward;
+        const angularError = Math.acos(
+          Math.min(Math.max(Vector3.Dot(forward, direction), -1), 1),
+        );
+        const hit = this.scene.pickWithRay(
+          new Ray(this.camera.position, direction, distance + 0.5),
+          (mesh) => mesh.isPickable && mesh.isEnabled(),
+        );
+        const visible = this.resolveEnemy(hit?.pickedMesh ?? null)?.id === enemy.id;
+        const targetYaw = Math.atan2(direction.x, direction.z);
+        const targetPitch = Math.atan2(direction.y, Math.hypot(direction.x, direction.z));
+        const normalizeAngle = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
+        return {
+          id: enemy.id,
+          alive: enemy.alive,
+          visible,
+          angularError,
+          distance,
+          yawError: normalizeAngle(targetYaw - this.camera.rotation.y),
+          pitchError: normalizeAngle(targetPitch + this.camera.rotation.x),
+        };
+      });
+    return chooseAimAssistTarget(candidates, {
+      coneRadians: aiming ? 0.11 : 0.075,
+      maxDistance: 70,
+    });
+  }
+
+  private fireHumanWeapon(now: number): void {
+    if (now - this.lastHumanShotAt < 135) return;
+    const snapshot = this.options.services.store.getSnapshot();
+    if (snapshot.paused || snapshot.phase !== 'MISSION') return;
+    if (snapshot.section === 'CHASE' && snapshot.humanCharacter !== 'CODY') return;
+    const fired = this.options.services.store.fireWeapon(snapshot.humanCharacter);
+    if (!fired.ok) return;
+    this.lastHumanShotAt = now;
+    this.audio.play('SHOT');
+    const ray = this.camera.getForwardRay(120);
+    const hit = this.scene.pickWithRay(
+      ray,
+      (mesh) => mesh.metadata?.kind === 'enemy' && mesh.isEnabled(),
+    );
+    const enemy = this.resolveEnemy(hit?.pickedMesh ?? null);
+    if (enemy) this.damageEnemy(enemy, snapshot.section === 'CHASE' ? 60 : 55);
+    this.flashMuzzle();
   }
 
   private configureChaseCamera(): void {
