@@ -24,6 +24,7 @@ import type { InputDevice } from './input/inputBindings';
 import { PointerLockController, type PointerLockSnapshot } from './input/PointerLockController';
 import type { CharacterId, MissionSection } from './MissionStore';
 import { RuntimeVisualFactory, type RuntimeEnemy } from './RuntimeVisualFactory';
+import { FirstPersonViewModel } from './presentation/FirstPersonViewModel';
 import {
   choosePrioritizedTarget,
   shouldAdvanceMissionSimulation,
@@ -87,6 +88,7 @@ export class BabylonGameRuntime {
   private readonly playerMotor = new PlayerMotor();
   private enemyDirector = new EnemyDirector();
   private enemyCombatRuntime: EnemyCombatRuntime | null = null;
+  private viewModel: FirstPersonViewModel | null = null;
   private readonly tutorial: TutorialDirector;
   private lastInputFrame: InputFrame = {
     device: 'KEYBOARD_MOUSE',
@@ -182,6 +184,7 @@ export class BabylonGameRuntime {
     this.pointerLock.dispose();
     this.input.dispose();
     this.enemyCombatRuntime?.dispose();
+    this.viewModel?.dispose();
     this.scene.dispose();
     this.engine.dispose();
     this.audio.dispose();
@@ -192,6 +195,8 @@ export class BabylonGameRuntime {
     this.lastInputFrame = this.input.poll();
     const section = snapshot.section;
     this.enemyCombatRuntime?.dispose();
+    this.viewModel?.dispose();
+    this.viewModel = null;
     this.scene.dispose();
     this.scene = this.createBaseScene();
     this.enemyCombatRuntime = new EnemyCombatRuntime(this.scene);
@@ -218,6 +223,9 @@ export class BabylonGameRuntime {
 
     if (section && FACILITY_SECTIONS.has(section)) this.buildFacility(section);
     if (section === 'CHASE') this.buildChase();
+    if (section) {
+      this.viewModel = new FirstPersonViewModel(this.scene, this.camera, snapshot.humanCharacter);
+    }
     this.emitStatus(true);
   }
 
@@ -640,6 +648,8 @@ export class BabylonGameRuntime {
     this.partnerMesh?.dispose();
     this.partnerMesh = this.visualFactory.createCharacter(previous, this.characterPositions[previous].subtract(new Vector3(0, 1.7, 0)));
     if (this.currentSection === 'CHASE') this.configureChaseCamera();
+    this.viewModel?.dispose();
+    this.viewModel = new FirstPersonViewModel(this.scene, this.camera, nextHuman);
   }
 
   private movePartner(dt: number): void {
@@ -883,6 +893,22 @@ export class BabylonGameRuntime {
     const aiming = this.lastInputFrame.aim > 0.35 || this.pressed.has('MouseRight');
     const desiredFov = aiming ? 0.78 : 1.05;
     this.camera.fov += (desiredFov - this.camera.fov) * Math.min(1, dt * 12);
+    const snapshot = this.options.services.store.getSnapshot();
+    const moving = Math.hypot(this.lastInputFrame.move.x, this.lastInputFrame.move.y);
+    const showWeapon =
+      snapshot.phase === 'MISSION' &&
+      snapshot.switching.state !== 'TRANSITION' &&
+      (snapshot.section !== 'CHASE' || snapshot.humanCharacter === 'CODY');
+    this.viewModel?.setVisible(showWeapon);
+    this.viewModel?.update(
+      {
+        sprint: this.lastInputFrame.sprinting && moving > 0.25 ? 1 : 0,
+        aim: aiming ? 1 : 0,
+        bob: this.lastCameraBob * 0.35,
+        sway: moving > 0.2 ? Math.sin(performance.now() / 180) * 0.006 : 0,
+      },
+      dt,
+    );
     if (!section || !FACILITY_SECTIONS.has(section)) return;
   }
 
@@ -920,7 +946,10 @@ export class BabylonGameRuntime {
       this.camera.rotation.z = motor.camera.lean;
     }
 
-    if (input.reloadPressed) this.options.services.store.reloadWeapon(snapshot.humanCharacter);
+    if (input.reloadPressed) {
+      const reloaded = this.options.services.store.reloadWeapon(snapshot.humanCharacter);
+      if (reloaded.ok) this.viewModel?.playReload();
+    }
     if (input.switchPressed) this.options.services.store.beginSwitch();
     if (
       input.interactPressed &&
@@ -986,6 +1015,7 @@ export class BabylonGameRuntime {
     if (!fired.ok) return;
     this.lastHumanShotAt = now;
     this.audio.play('SHOT');
+    this.viewModel?.playFire();
     const ray = this.camera.getForwardRay(120);
     const hit = this.scene.pickWithRay(
       ray,
