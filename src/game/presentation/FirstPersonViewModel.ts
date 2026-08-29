@@ -68,24 +68,33 @@ export class FirstPersonViewModel {
     this.root.parent = camera;
 
     const weapon = new StandardMaterial('viewmodel-weapon', scene);
-    weapon.diffuseColor = new Color3(0.045, 0.055, 0.058);
-    weapon.specularColor = new Color3(0.3, 0.34, 0.34);
+    weapon.diffuseColor = new Color3(0.035, 0.047, 0.05);
+    weapon.specularColor = new Color3(0.24, 0.29, 0.29);
     weapon.disableDepthWrite = true;
     const accent = new StandardMaterial('viewmodel-accent', scene);
-    accent.diffuseColor = character === 'OWEN' ? new Color3(0.04, 0.34, 0.36) : new Color3(0.42, 0.18, 0.04);
-    accent.emissiveColor = character === 'OWEN' ? new Color3(0.02, 0.12, 0.13) : new Color3(0.16, 0.05, 0.01);
+    accent.diffuseColor = character === 'OWEN' ? new Color3(0.035, 0.24, 0.26) : new Color3(0.34, 0.14, 0.035);
+    accent.emissiveColor = character === 'OWEN' ? new Color3(0.012, 0.065, 0.07) : new Color3(0.08, 0.025, 0.005);
     accent.disableDepthWrite = true;
     const glove = new StandardMaterial('viewmodel-glove', scene);
-    glove.diffuseColor = new Color3(0.055, 0.065, 0.065);
+    glove.diffuseColor = new Color3(0.045, 0.055, 0.055);
     glove.disableDepthWrite = true;
 
-    this.part('gun-body', { width: 0.16, height: 0.18, depth: 0.58 }, new Vector3(0, 0, 0.32), weapon);
-    this.part('gun-slide', { width: 0.13, height: 0.1, depth: 0.62 }, new Vector3(0, 0.1, 0.35), accent);
-    this.part('gun-barrel', { width: 0.07, height: 0.07, depth: 0.42 }, new Vector3(0, 0.04, 0.72), weapon);
-    this.part('rear-sight', { width: 0.1, height: 0.06, depth: 0.035 }, new Vector3(0, 0.18, 0.18), weapon);
-    this.part('front-sight', { width: 0.03, height: 0.055, depth: 0.025 }, new Vector3(0, 0.17, 0.72), accent);
-    this.part('hand-right', { width: 0.2, height: 0.22, depth: 0.28 }, new Vector3(0.08, -0.2, 0.12), glove);
-    this.part('hand-left', { width: 0.22, height: 0.2, depth: 0.32 }, new Vector3(-0.2, -0.14, 0.38), glove);
+    this.part('gun-frame', { width: 0.17, height: 0.15, depth: 0.46 }, new Vector3(0, 0.005, 0.34), weapon);
+    this.part('gun-slide', { width: 0.145, height: 0.105, depth: 0.58 }, new Vector3(0, 0.115, 0.42), weapon);
+    this.part('slide-signal', { width: 0.151, height: 0.022, depth: 0.3 }, new Vector3(0, 0.174, 0.34), accent);
+    this.part('ejection-port', { width: 0.08, height: 0.012, depth: 0.12 }, new Vector3(0.038, 0.174, 0.47), glove);
+    this.part('gun-grip', { width: 0.135, height: 0.31, depth: 0.17 }, new Vector3(0, -0.19, 0.18), weapon, { x: -0.16 });
+    this.cylinderPart('gun-barrel', 0.055, 0.4, new Vector3(0, 0.07, 0.75), weapon, { x: Math.PI / 2 });
+    this.cylinderPart('muzzle-crown', 0.075, 0.035, new Vector3(0, 0.07, 0.94), accent, { x: Math.PI / 2 });
+    this.part('rear-sight', { width: 0.105, height: 0.052, depth: 0.035 }, new Vector3(0, 0.19, 0.18), weapon);
+    this.part('front-sight', { width: 0.028, height: 0.05, depth: 0.025 }, new Vector3(0, 0.19, 0.68), accent);
+
+    // Angular forearms make the low-poly silhouette read as a supported two-hand grip,
+    // rather than two floating cubes beside the weapon.
+    this.part('forearm-right', { width: 0.2, height: 0.22, depth: 0.5 }, new Vector3(0.16, -0.3, -0.02), glove, { x: -0.34, y: -0.12, z: -0.08 });
+    this.part('hand-right', { width: 0.18, height: 0.2, depth: 0.24 }, new Vector3(0.045, -0.19, 0.17), glove, { x: -0.16 });
+    this.part('forearm-left', { width: 0.2, height: 0.2, depth: 0.5 }, new Vector3(-0.23, -0.27, 0.08), glove, { x: -0.48, y: 0.18, z: 0.08 });
+    this.part('hand-left', { width: 0.2, height: 0.18, depth: 0.26 }, new Vector3(-0.12, -0.11, 0.43), glove, { x: -0.18, y: 0.16 });
   }
 
   update(input: Omit<ViewModelPoseInput, 'reload' | 'recoil'>, deltaSeconds: number): void {
@@ -129,10 +138,29 @@ export class FirstPersonViewModel {
     size: { width: number; height: number; depth: number },
     position: Vector3,
     material: StandardMaterial,
+    rotation: { x?: number; y?: number; z?: number } = {},
   ): void {
     const mesh = MeshBuilder.CreateBox(name, size, this.scene);
     mesh.parent = this.root;
     mesh.position = position;
+    mesh.rotation = new Vector3(rotation.x ?? 0, rotation.y ?? 0, rotation.z ?? 0);
+    mesh.material = material;
+    mesh.renderingGroupId = 2;
+    mesh.isPickable = false;
+  }
+
+  private cylinderPart(
+    name: string,
+    diameter: number,
+    height: number,
+    position: Vector3,
+    material: StandardMaterial,
+    rotation: { x?: number; y?: number; z?: number } = {},
+  ): void {
+    const mesh = MeshBuilder.CreateCylinder(name, { diameter, height, tessellation: 10 }, this.scene);
+    mesh.parent = this.root;
+    mesh.position = position;
+    mesh.rotation = new Vector3(rotation.x ?? 0, rotation.y ?? 0, rotation.z ?? 0);
     mesh.material = material;
     mesh.renderingGroupId = 2;
     mesh.isPickable = false;

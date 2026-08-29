@@ -79,8 +79,8 @@ export class RuntimeVisualFactory {
   }
 
   createPursuer(id: string, point: WorldPoint): RuntimeEnemy {
-    const body = this.material('pursuer-body', new Color3(0.08, 0.04, 0.035), 0.62);
-    const glass = this.material('pursuer-glass', new Color3(0.08, 0.03, 0.03), 0.4, new Color3(0.08, 0.01, 0.01));
+    const body = this.material('pursuer-body', new Color3(0.13, 0.055, 0.04), 0.58, new Color3(0.018, 0.004, 0.002));
+    const glass = this.material('pursuer-glass', new Color3(0.1, 0.035, 0.035), 0.36, new Color3(0.11, 0.012, 0.008));
     const tail = this.material('pursuer-tail', new Color3(0.4, 0.05, 0.03), 0.3, new Color3(0.45, 0.04, 0.02));
     const mesh = this.box(id, { width: 2.3, height: 0.85, depth: 4.6 }, new Vector3(point.x, 0.72, point.z), body, false);
     this.tagEnemy(mesh, id);
