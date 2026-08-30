@@ -27,6 +27,10 @@ import type { GameRuntimeStatus } from './game/BabylonGameRuntime';
 import type { CheckpointId, MissionFailure, MissionSection } from './game/MissionStore';
 import type { PartnerEvent } from './partner/PartnerCoordinator';
 import type { AudioSettings } from './audio/AdaptiveAudioDirector';
+import {
+  loadControlSettings,
+  saveControlSettings,
+} from './game/input/controlSettings';
 
 export interface AppProps {
   services: AppServices;
@@ -178,6 +182,9 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
   const [partnerEvents, setPartnerEvents] = useState(() => services.coordinator.getEvents());
   const [activeCallout, setActiveCallout] = useState<string | null>(null);
   const [audioSettings, setAudioSettings] = useState(loadAudioSettings);
+  const [controlSettings, setControlSettings] = useState(() =>
+    loadControlSettings(window.localStorage),
+  );
   const [, setMemoryRevision] = useState(0);
   const [, forceClockRender] = useState(0);
   const runStartedAt = useRef(Date.now());
@@ -211,6 +218,10 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
   useEffect(() => {
     window.localStorage.setItem('hs-heist:audio-settings', JSON.stringify(audioSettings));
   }, [audioSettings]);
+
+  useEffect(() => {
+    saveControlSettings(window.localStorage, controlSettings);
+  }, [controlSettings]);
 
   useEffect(() => {
     if (snapshot.runId && snapshot.runId !== previousRun.current) {
@@ -448,6 +459,7 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
             services={services}
             onStatus={handleRuntimeStatus}
             audioSettings={audioSettings}
+            controlSettings={controlSettings}
             onPauseRequest={pauseMission}
           />
           <Hud
@@ -566,6 +578,8 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
           onReturnToPairing={returnToPairing}
           audio={audioSettings}
           onAudioChange={setAudioSettings}
+          controls={controlSettings}
+          onControlsChange={setControlSettings}
         />
       ) : null}
 
@@ -574,6 +588,8 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
           variant={overlayReturn === 'NONE' && snapshot.section === 'FACILITY_ONE' ? 'FIRST_RUN' : 'REFERENCE'}
           device={runtimeStatus.inputDevice}
           onDismiss={closeSecondaryOverlay}
+          controlSettings={controlSettings}
+          onControlSettingsChange={setControlSettings}
         />
       ) : null}
 

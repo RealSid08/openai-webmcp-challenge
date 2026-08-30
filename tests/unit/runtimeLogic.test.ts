@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import {
+import * as runtimeLogic from '../../src/game/runtimeLogic';
+
+const {
   choosePrioritizedTarget,
   shouldAdvanceMissionSimulation,
   shouldHoldForAgentTurn,
-} from '../../src/game/runtimeLogic';
+} = runtimeLogic;
 
 const targets = [
   { id: 'pursuer-1', health: 40, distanceSquared: 25, alive: true },
@@ -44,5 +46,30 @@ describe('runtime chase decisions', () => {
   it('falls back to the closest live target for an unknown id', () => {
     expect(choosePrioritizedTarget(targets, 'not-visible')?.id).toBe('pursuer-1');
     expect(choosePrioritizedTarget([], 'CLOSEST')).toBeNull();
+  });
+});
+
+describe('runtime mouse look', () => {
+  it('uses a lower default for both raw movement and lockless edge turning', () => {
+    const computeMouseLookDelta = (
+      runtimeLogic as typeof runtimeLogic & {
+        computeMouseLookDelta?: (
+          movement: { x: number; y: number },
+          edge: { x: number; y: number },
+          sensitivity: number,
+          deltaSeconds: number,
+        ) => { yaw: number; pitch: number };
+      }
+    ).computeMouseLookDelta;
+
+    expect(computeMouseLookDelta).toBeTypeOf('function');
+    const result = computeMouseLookDelta?.(
+      { x: 100, y: -50 },
+      { x: 1, y: 0.5 },
+      0.7,
+      0.02,
+    );
+    expect(result?.yaw).toBeCloseTo(0.147, 6);
+    expect(result?.pitch).toBeCloseTo(-0.04585, 6);
   });
 });

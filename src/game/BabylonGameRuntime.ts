@@ -21,12 +21,14 @@ import {
   type AimAssistCandidate,
 } from './input/aimAssist';
 import type { InputDevice } from './input/inputBindings';
+import type { ControlSettings } from './input/controlSettings';
 import {
   isMouseLookActive,
   PointerLockController,
   type PointerLockSnapshot,
 } from './input/PointerLockController';
 import type { CharacterId, MissionSection } from './MissionStore';
+import { computeMouseLookDelta } from './runtimeLogic';
 import { RuntimeVisualFactory, type RuntimeEnemy } from './RuntimeVisualFactory';
 import { FirstPersonViewModel } from './presentation/FirstPersonViewModel';
 import {
@@ -61,6 +63,7 @@ interface RuntimeOptions {
   services: AppServices;
   onStatus: (status: GameRuntimeStatus) => void;
   audioSettings: AudioSettings;
+  controlSettings: ControlSettings;
   onPauseRequest: () => void;
 }
 
@@ -91,6 +94,7 @@ export class BabylonGameRuntime {
     OWEN: new Vector3(-3.5, 1.7, 1),
     CODY: new Vector3(2.5, 1.7, 2),
   };
+  private controlSettings: ControlSettings;
   private readonly pressed = new Set<string>();
   private readonly turnState = new Map<1 | 2, TurnRuntime>();
   private readonly prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -143,6 +147,7 @@ export class BabylonGameRuntime {
   constructor(private readonly options: RuntimeOptions) {
     this.pointerLock = new PointerLockController(options.canvas, document);
     this.audio.setVolumes(options.audioSettings);
+    this.controlSettings = options.controlSettings;
     this.input = new InputManager();
     this.tutorial = new TutorialDirector({
       completedBefore: window.localStorage.getItem('hs-heist:tutorial-complete') === '1',
@@ -184,6 +189,10 @@ export class BabylonGameRuntime {
 
   setAudioSettings(settings: AudioSettings): void {
     this.audio.setVolumes(settings);
+  }
+
+  setControlSettings(settings: ControlSettings): void {
+    this.controlSettings = settings;
   }
 
   dispose(): void {
@@ -955,13 +964,21 @@ export class BabylonGameRuntime {
     const pointerState = this.pointerLock.getSnapshot().state;
     const pointerActive = isMouseLookActive(pointerState);
     if (input.device !== 'KEYBOARD_MOUSE' || pointerActive) {
-      const lookScale = input.device === 'KEYBOARD_MOUSE' ? 0.00165 : dt * 2.35;
-      let yaw = input.look.x * lookScale;
-      let pitch = input.look.y * lookScale;
-      if (input.device === 'KEYBOARD_MOUSE' && pointerState === 'LOCKLESS') {
-        const edgeTurn = this.pointerLock.getLocklessEdgeTurn();
-        yaw += edgeTurn.x * dt * 2.25;
-        pitch += edgeTurn.y * dt * 1.7;
+      let yaw: number;
+      let pitch: number;
+      if (input.device === 'KEYBOARD_MOUSE') {
+        const edgeTurn = pointerState === 'LOCKLESS'
+          ? this.pointerLock.getLocklessEdgeTurn()
+          : { x: 0, y: 0 };
+        ({ yaw, pitch } = computeMouseLookDelta(
+          input.look,
+          edgeTurn,
+          this.controlSettings.mouseSensitivity,
+          dt,
+        ));
+      } else {
+        yaw = input.look.x * dt * 2.35;
+        pitch = input.look.y * dt * 2.35;
       }
       if (input.device !== 'KEYBOARD_MOUSE') {
         const assist = computeAimAssistCorrection(this.findAimAssistTarget(input.aim > 0.35), {

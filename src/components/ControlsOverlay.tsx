@@ -5,6 +5,8 @@ import {
   type ControlGroup,
   type InputDevice,
 } from '../game/input/inputBindings';
+import { SensitivityControl } from './SensitivityControl';
+import type { ControlSettings } from '../game/input/controlSettings';
 
 export type { ControlBinding, ControlGroup } from '../game/input/inputBindings';
 
@@ -68,6 +70,8 @@ export interface ControlsOverlayProps {
   device?: InputDevice;
   onDismiss: () => void;
   dismissLabel?: string;
+  controlSettings?: ControlSettings;
+  onControlSettingsChange?: (settings: ControlSettings) => void;
 }
 
 export const DEFAULT_CONTROL_GROUPS = getControlGroups('KEYBOARD_MOUSE');
@@ -78,6 +82,8 @@ export function ControlsOverlay({
   device = 'KEYBOARD_MOUSE',
   onDismiss,
   dismissLabel,
+  controlSettings,
+  onControlSettingsChange,
 }: ControlsOverlayProps) {
   const { ref, onKeyDown } = useDialogFocus<HTMLDivElement>(onDismiss);
   const firstRun = variant === 'FIRST_RUN';
@@ -125,6 +131,10 @@ export function ControlsOverlay({
             </section>
           ))}
         </div>
+
+        {controlSettings && onControlSettingsChange ? (
+          <SensitivityControl settings={controlSettings} onChange={onControlSettingsChange} />
+        ) : null}
 
         <footer className="panel__foot">
           <button type="button" className="ui-btn ui-btn--primary" onClick={onDismiss}>

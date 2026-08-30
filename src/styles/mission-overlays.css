@@ -238,6 +238,82 @@
   accent-color: var(--amber);
 }
 
+.sensitivity-settings {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0.8rem;
+  border: 1px solid var(--bone-a12);
+  background: rgb(2 3 4 / 42%);
+}
+
+.sensitivity-settings legend,
+.sensitivity-settings__control > span,
+.sensitivity-settings__scale,
+.sensitivity-settings__reset {
+  font-family: var(--font-stencil);
+  font-size: var(--step-xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.sensitivity-settings legend,
+.sensitivity-settings__control > span {
+  color: var(--fog);
+}
+
+.sensitivity-settings__control {
+  display: grid;
+  grid-template-columns: 10rem 1fr;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.sensitivity-settings input {
+  width: 100%;
+  accent-color: var(--cyan);
+}
+
+.sensitivity-settings__scale {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin-left: 10.8rem;
+  color: var(--fog-faint);
+}
+
+.sensitivity-settings__scale span:nth-child(2) {
+  color: var(--amber);
+  text-align: center;
+}
+
+.sensitivity-settings__scale span:last-child {
+  text-align: right;
+}
+
+.sensitivity-settings__reset {
+  justify-self: end;
+  padding: 0;
+  color: var(--cyan-soft);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.sensitivity-settings__reset:disabled {
+  color: var(--fog-faint);
+  cursor: default;
+}
+
+@media (max-width: 600px) {
+  .sensitivity-settings__control {
+    grid-template-columns: 1fr;
+  }
+
+  .sensitivity-settings__scale {
+    margin-left: 0;
+  }
+}
+
 /* ----------------------------------------------------------- memory view */
 
 .md {

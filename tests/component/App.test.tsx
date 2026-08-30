@@ -137,6 +137,29 @@ describe('App', () => {
     services.destroy();
   });
 
+  it('loads mouse sensitivity into the first-run controls and persists changes', async () => {
+    window.localStorage.setItem(
+      'hs-heist:control-settings',
+      JSON.stringify({ mouseSensitivity: 0.4 }),
+    );
+    const services = createServices();
+    services.coordinator.join('Codex');
+    services.store.startMission();
+    services.store.enterFacility();
+
+    render(<App services={services} compatibility="SUPPORTED" />);
+
+    const slider = await screen.findByRole('slider', { name: 'Mouse sensitivity' });
+    expect(slider).toHaveValue('0.4');
+    fireEvent.change(slider, { target: { value: '0.55' } });
+
+    await waitFor(() =>
+      expect(JSON.parse(window.localStorage.getItem('hs-heist:control-settings') ?? '{}'))
+        .toMatchObject({ mouseSensitivity: 0.55 }),
+    );
+    services.destroy();
+  });
+
   it('advances mission deadlines when the Babylon render loop is unavailable', async () => {
     let now = 1_000;
     const services = createServices(() => now);

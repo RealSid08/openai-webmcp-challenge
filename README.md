@@ -52,6 +52,8 @@ On first entering the facility, a short interactive training sequence teaches mo
 | `M` | Inspect partner memory |
 | `Esc` | Pause |
 
+Mouse sensitivity starts lower than the original release and can be adjusted without numeric clutter from either the first-run Controls screen or the Pause menu. The Low–Default–High slider and reset action persist locally between sessions and affect both captured and lockless mouse look.
+
 | Controller | Action |
 | --- | --- |
 | Left / right sticks | Move or steer / look |

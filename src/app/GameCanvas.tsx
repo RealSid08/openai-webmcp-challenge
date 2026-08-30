@@ -3,15 +3,23 @@ import { useEffect, useRef, useState } from 'react';
 import type { AppServices } from './createAppServices';
 import type { GameRuntimeStatus } from '../game/BabylonGameRuntime';
 import type { AudioSettings } from '../audio/AdaptiveAudioDirector';
+import type { ControlSettings } from '../game/input/controlSettings';
 
 interface GameCanvasProps {
   services: AppServices;
   onStatus: (status: GameRuntimeStatus) => void;
   audioSettings: AudioSettings;
+  controlSettings: ControlSettings;
   onPauseRequest: () => void;
 }
 
-export function GameCanvas({ services, onStatus, audioSettings, onPauseRequest }: GameCanvasProps) {
+export function GameCanvas({
+  services,
+  onStatus,
+  audioSettings,
+  controlSettings,
+  onPauseRequest,
+}: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const runtimeRef = useRef<import('../game/BabylonGameRuntime').BabylonGameRuntime | null>(null);
   const onPauseRequestRef = useRef(onPauseRequest);
@@ -44,6 +52,7 @@ export function GameCanvas({ services, onStatus, audioSettings, onPauseRequest }
             onStatus(status);
           },
           audioSettings,
+          controlSettings,
           onPauseRequest: () => onPauseRequestRef.current(),
         });
         runtimeRef.current = runtime;
@@ -67,6 +76,10 @@ export function GameCanvas({ services, onStatus, audioSettings, onPauseRequest }
   useEffect(() => {
     runtimeRef.current?.setAudioSettings(audioSettings);
   }, [audioSettings]);
+
+  useEffect(() => {
+    runtimeRef.current?.setControlSettings(controlSettings);
+  }, [controlSettings]);
 
   return (
     <div

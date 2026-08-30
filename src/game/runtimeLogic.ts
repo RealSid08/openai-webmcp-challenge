@@ -1,4 +1,18 @@
 import type { CharacterId } from './MissionStore';
+import { clampMouseSensitivity } from './input/controlSettings';
+
+export function computeMouseLookDelta(
+  movement: Readonly<{ x: number; y: number }>,
+  edgeTurn: Readonly<{ x: number; y: number }>,
+  sensitivity: number,
+  deltaSeconds: number,
+): { yaw: number; pitch: number } {
+  const multiplier = clampMouseSensitivity(sensitivity);
+  return {
+    yaw: (movement.x * 0.00165 + edgeTurn.x * deltaSeconds * 2.25) * multiplier,
+    pitch: (movement.y * 0.00165 + edgeTurn.y * deltaSeconds * 1.7) * multiplier,
+  };
+}
 
 export function shouldAdvanceMissionSimulation(input: {
   phase: string;
