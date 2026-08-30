@@ -43,6 +43,69 @@ describe('PartnerCoordinator pairing', () => {
       sessionId: 'session-1',
     });
   });
+
+  it('expires an idle partner lease and invalidates the abandoned session', () => {
+    let now = 1_000;
+    let sequence = 0;
+    const store = new MissionStore({ now: () => now, createId: () => `session-${++sequence}` });
+    const memory = new MemoryRepository({
+      storage: createStorage(),
+      now: () => now,
+      createId: () => 'lesson-presence',
+      getEvent: () => undefined,
+    });
+    const coordinator = new PartnerCoordinator({ store, memory, now: () => now });
+    const first = coordinator.join('Codex');
+
+    now = 30_999;
+    coordinator.tickPresence();
+    expect(store.getSnapshot().partner.online).toBe(true);
+
+    now = 31_001;
+    coordinator.tickPresence();
+    expect(store.getSnapshot()).toMatchObject({
+      phase: 'PAIRING',
+      objective: 'PAIR WITH YOUR PARTNER',
+      partner: { online: false, name: null, sessionId: null },
+    });
+    expect(
+      coordinator.setTactic({
+        sessionId: first.sessionId,
+        tactic: 'COVER',
+        radioLine: 'Still here.',
+        usedLessonIds: [],
+      }),
+    ).toEqual({ ok: false, reason: 'INVALID_SESSION' });
+
+    expect(coordinator.join('Codex').sessionId).toBe('session-2');
+  });
+
+  it('renews presence when the authenticated partner acts', () => {
+    let now = 1_000;
+    const store = new MissionStore({ now: () => now, createId: () => 'session-active' });
+    const memory = new MemoryRepository({
+      storage: createStorage(),
+      now: () => now,
+      createId: () => 'lesson-active',
+      getEvent: () => undefined,
+    });
+    const coordinator = new PartnerCoordinator({ store, memory, now: () => now });
+    const { sessionId } = coordinator.join('Codex');
+
+    now = 20_000;
+    expect(
+      coordinator.setTactic({
+        sessionId,
+        tactic: 'COVER',
+        radioLine: 'I am still covering the lane.',
+        usedLessonIds: [],
+      }),
+    ).toEqual({ ok: true, tactic: 'COVER' });
+
+    now = 49_999;
+    coordinator.tickPresence();
+    expect(store.getSnapshot().partner.online).toBe(true);
+  });
 });
 
 describe('PartnerCoordinator event loop', () => {
@@ -118,6 +181,11 @@ describe('PartnerCoordinator event loop', () => {
     controller.abort();
 
     await expect(waiting).rejects.toMatchObject({ name: 'AbortError' });
+    expect(store.getSnapshot().partner).toEqual({
+      online: false,
+      name: null,
+      sessionId: null,
+    });
   });
 
   it('applies an authenticated agent tactic and publishes its visible consequence', async () => {

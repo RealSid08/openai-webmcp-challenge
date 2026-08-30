@@ -65,6 +65,34 @@ describe('PointerLockController', () => {
     controller.dispose();
   });
 
+  it('keeps the clamped edge turn after the pointer leaves and clears it when focus is lost', async () => {
+    const canvas = document.createElement('canvas');
+    canvas.requestPointerLock = vi.fn<() => Promise<void>>().mockRejectedValue(
+      new DOMException('Pointer lock was denied.', 'NotAllowedError'),
+    );
+    canvas.getBoundingClientRect = () => ({
+      bottom: 800,
+      height: 800,
+      left: 0,
+      right: 1_000,
+      top: 0,
+      width: 1_000,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    const controller = new PointerLockController(canvas, document);
+    await controller.request();
+
+    controller.handlePointerMove({ clientX: 995, clientY: 400 } as PointerEvent);
+    canvas.dispatchEvent(new PointerEvent('pointerleave'));
+    expect(controller.getLocklessEdgeTurn().x).toBeGreaterThan(0.9);
+
+    window.dispatchEvent(new Event('blur'));
+    expect(controller.getLocklessEdgeTurn()).toEqual({ x: 0, y: 0 });
+    controller.dispose();
+  });
+
   it('tracks successful lock and release events from the owner document', async () => {
     const canvas = document.createElement('canvas');
     let lockedElement: Element | null = null;

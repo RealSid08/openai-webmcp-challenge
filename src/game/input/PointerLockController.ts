@@ -65,7 +65,7 @@ export class PointerLockController {
   private readonly onPointerLockError = () => this.enableLockless();
 
   private readonly onPointerMove = (event: PointerEvent) => this.handlePointerMove(event);
-  private readonly onPointerLeave = () => {
+  private readonly onFocusLost = () => {
     this.locklessEdgeTurn = { x: 0, y: 0 };
   };
 
@@ -76,7 +76,7 @@ export class PointerLockController {
     owner.addEventListener('pointerlockchange', this.onPointerLockChange);
     owner.addEventListener('pointerlockerror', this.onPointerLockError);
     canvas.addEventListener('pointermove', this.onPointerMove);
-    canvas.addEventListener('pointerleave', this.onPointerLeave);
+    owner.defaultView?.addEventListener('blur', this.onFocusLost);
   }
 
   getSnapshot(): PointerLockSnapshot {
@@ -132,7 +132,7 @@ export class PointerLockController {
     this.owner.removeEventListener('pointerlockchange', this.onPointerLockChange);
     this.owner.removeEventListener('pointerlockerror', this.onPointerLockError);
     this.canvas.removeEventListener('pointermove', this.onPointerMove);
-    this.canvas.removeEventListener('pointerleave', this.onPointerLeave);
+    this.owner.defaultView?.removeEventListener('blur', this.onFocusLost);
     this.listeners.clear();
   }
 

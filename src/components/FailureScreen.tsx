@@ -4,7 +4,8 @@ export type FailureCode =
   | 'PLAYER_DOWN'
   | 'PARTNER_DOWN'
   | 'VEHICLE_DESTROYED'
-  | 'MISSION_COMPROMISED';
+  | 'MISSION_COMPROMISED'
+  | 'PARTNER_DISCONNECTED';
 
 export interface FailureScreenProps {
   code: FailureCode;
@@ -30,6 +31,7 @@ const HEADLINES: Record<FailureCode, string> = {
   PARTNER_DOWN: 'Partner down',
   VEHICLE_DESTROYED: 'Vehicle destroyed',
   MISSION_COMPROMISED: 'Mission compromised',
+  PARTNER_DISCONNECTED: 'Partner disconnected',
 };
 
 const ATTRIBUTION_LABELS: Record<

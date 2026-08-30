@@ -29,6 +29,21 @@ describe('MissionStore pairing', () => {
       partner: { online: true, name: 'Codex', sessionId: 'session-7' },
     });
   });
+
+  it('ends an active attempt when its authenticated partner disconnects', () => {
+    const store = new MissionStore({ now: () => 1_000, createId: () => 'session-disconnect' });
+    const { sessionId } = store.joinPartner('Codex');
+    store.startMission();
+    store.enterFacility();
+
+    expect(store.disconnectPartner(sessionId)).toEqual({ ok: true });
+    expect(store.getSnapshot()).toMatchObject({
+      phase: 'FAILURE',
+      objective: 'PARTNER CONNECTION LOST',
+      partner: { online: false, name: null, sessionId: null },
+      failure: { code: 'PARTNER_DISCONNECTED', cause: 'AGENT_DISCONNECTED' },
+    });
+  });
 });
 
 describe('MissionStore mission lifecycle', () => {
