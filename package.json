@@ -9,8 +9,8 @@
     "preview": "vite preview",
     "lint": "oxlint . --deny-warnings",
     "typecheck": "tsc -b --pretty false",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "cross-env NODE_OPTIONS=--no-experimental-webstorage vitest run",
+    "test:watch": "cross-env NODE_OPTIONS=--no-experimental-webstorage vitest",
     "test:e2e": "playwright test"
   },
   "dependencies": {
@@ -26,6 +26,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "6.1.1",
+    "cross-env": "^10.1.0",
     "jsdom": "29.1.1",
     "oxlint": "1.80.0",
     "typescript": "7.0.2",
