@@ -1,4 +1,5 @@
 import { useDialogFocus } from './ControlsOverlay';
+import type { AudioSettings } from '../audio/AdaptiveAudioDirector';
 
 export interface PauseMenuProps {
   sectionLabel?: string;
@@ -12,6 +13,8 @@ export interface PauseMenuProps {
   onOpenMemory: () => void;
   onRestartCheckpoint: () => void;
   onReturnToPairing: () => void;
+  audio: AudioSettings;
+  onAudioChange: (settings: AudioSettings) => void;
 }
 
 export function PauseMenu({
@@ -24,6 +27,8 @@ export function PauseMenu({
   onOpenMemory,
   onRestartCheckpoint,
   onReturnToPairing,
+  audio,
+  onAudioChange,
 }: PauseMenuProps) {
   const { ref, onKeyDown } = useDialogFocus<HTMLDivElement>(onResume);
 
@@ -66,6 +71,36 @@ export function PauseMenu({
             </div>
           ) : null}
         </dl>
+
+        <fieldset className="audio-settings">
+          <legend>Audio</legend>
+          <label>
+            <span>Music <b>{Math.round(audio.music * 100)}</b></span>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={Math.round(audio.music * 100)}
+              aria-label="Music volume"
+              onChange={(event) =>
+                onAudioChange({ ...audio, music: Number(event.currentTarget.value) / 100 })
+              }
+            />
+          </label>
+          <label>
+            <span>Effects <b>{Math.round(audio.effects * 100)}</b></span>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={Math.round(audio.effects * 100)}
+              aria-label="Effects volume"
+              onChange={(event) =>
+                onAudioChange({ ...audio, effects: Number(event.currentTarget.value) / 100 })
+              }
+            />
+          </label>
+        </fieldset>
 
         <div className="pausemenu">
           <button type="button" className="ui-btn ui-btn--primary" onClick={onResume}>

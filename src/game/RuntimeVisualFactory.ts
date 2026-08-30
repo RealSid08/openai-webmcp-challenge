@@ -11,6 +11,7 @@ import type { WorldPoint } from './worldLayout';
 export interface RuntimeEnemy {
   id: string;
   mesh: Mesh;
+  muzzle: Mesh;
   health: number;
   alive: boolean;
 }
@@ -64,12 +65,22 @@ export class RuntimeVisualFactory {
       pickable: true,
       enemyId: id,
     });
-    return { id, mesh, health: 100, alive: true };
+    const muzzle = this.box(
+      `${id}-muzzle`,
+      { width: 0.05, height: 0.05, depth: 0.05 },
+      new Vector3(0.32, 0.08, 0.82),
+      this.material('enemy-muzzle', new Color3(0.8, 0.15, 0.03), 0.1, new Color3(0.9, 0.08, 0.01)),
+      false,
+    );
+    muzzle.parent = mesh;
+    muzzle.visibility = 0;
+    muzzle.isPickable = false;
+    return { id, mesh, muzzle, health: 100, alive: true };
   }
 
   createPursuer(id: string, point: WorldPoint): RuntimeEnemy {
-    const body = this.material('pursuer-body', new Color3(0.08, 0.04, 0.035), 0.62);
-    const glass = this.material('pursuer-glass', new Color3(0.08, 0.03, 0.03), 0.4, new Color3(0.08, 0.01, 0.01));
+    const body = this.material('pursuer-body', new Color3(0.13, 0.055, 0.04), 0.58, new Color3(0.018, 0.004, 0.002));
+    const glass = this.material('pursuer-glass', new Color3(0.1, 0.035, 0.035), 0.36, new Color3(0.11, 0.012, 0.008));
     const tail = this.material('pursuer-tail', new Color3(0.4, 0.05, 0.03), 0.3, new Color3(0.45, 0.04, 0.02));
     const mesh = this.box(id, { width: 2.3, height: 0.85, depth: 4.6 }, new Vector3(point.x, 0.72, point.z), body, false);
     this.tagEnemy(mesh, id);
@@ -83,7 +94,11 @@ export class RuntimeVisualFactory {
       this.tagEnemy(lamp, id);
     }
     this.tagEnemy(cabin, id);
-    return { id, mesh, health: 100, alive: true };
+    const muzzle = this.box(`${id}-muzzle`, { width: 0.08, height: 0.08, depth: 0.08 }, new Vector3(0, 0.55, 2.35), tail, false);
+    muzzle.parent = mesh;
+    muzzle.visibility = 0;
+    muzzle.isPickable = false;
+    return { id, mesh, muzzle, health: 100, alive: true };
   }
 
   createCover(name: string, node: WorldPoint, index: number): void {

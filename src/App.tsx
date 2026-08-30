@@ -14,6 +14,7 @@ import { GameCanvas } from './app/GameCanvas';
 import type { AppServices } from './app/createAppServices';
 import { useMissionSnapshot } from './app/useMissionSnapshot';
 import { CompatibilityNotice, type CompatibilityReason } from './components/CompatibilityNotice';
+import { AgentPartnerBrief } from './components/AgentPartnerBrief';
 import { ControlsOverlay } from './components/ControlsOverlay';
 import { DebriefScreen } from './components/DebriefScreen';
 import { FailureScreen, type FailureCode } from './components/FailureScreen';
@@ -25,6 +26,7 @@ import { TitleSequence, type TitleStage } from './components/TitleSequence';
 import type { GameRuntimeStatus } from './game/BabylonGameRuntime';
 import type { CheckpointId, MissionFailure, MissionSection } from './game/MissionStore';
 import type { PartnerEvent } from './partner/PartnerCoordinator';
+import type { AudioSettings } from './audio/AdaptiveAudioDirector';
 
 export interface AppProps {
   services: AppServices;
@@ -52,7 +54,34 @@ const initialRuntimeStatus: GameRuntimeStatus = {
   chaseProgress: 0,
   prompt: null,
   pointerLocked: false,
+  pointerLock: { state: 'IDLE', canRetry: true, dragFallback: true, message: null },
+  inputDevice: 'KEYBOARD_MOUSE',
+  tutorial: {
+    active: true,
+    step: 'MOVE',
+    completed: false,
+    skipped: false,
+    refresher: false,
+    skipProgress: 0,
+  },
+  minimap: null,
 };
+
+const DEFAULT_AUDIO_SETTINGS: AudioSettings = { music: 0.65, effects: 0.82 };
+
+function loadAudioSettings(): AudioSettings {
+  try {
+    const saved = window.localStorage.getItem('hs-heist:audio-settings');
+    if (!saved) return DEFAULT_AUDIO_SETTINGS;
+    const value = JSON.parse(saved) as Partial<AudioSettings>;
+    return {
+      music: typeof value.music === 'number' ? Math.min(Math.max(value.music, 0), 1) : DEFAULT_AUDIO_SETTINGS.music,
+      effects: typeof value.effects === 'number' ? Math.min(Math.max(value.effects, 0), 1) : DEFAULT_AUDIO_SETTINGS.effects,
+    };
+  } catch {
+    return DEFAULT_AUDIO_SETTINGS;
+  }
+}
 
 function detectCompatibility(): { reason: CompatibilityReason; detail: string } | null {
   if (window.innerWidth < 960 || window.innerHeight < 600) {
@@ -141,6 +170,7 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
   const [runtimeStatus, setRuntimeStatus] = useState(initialRuntimeStatus);
   const [partnerEvents, setPartnerEvents] = useState(() => services.coordinator.getEvents());
   const [activeCallout, setActiveCallout] = useState<string | null>(null);
+  const [audioSettings, setAudioSettings] = useState(loadAudioSettings);
   const [, setMemoryRevision] = useState(0);
   const [, forceClockRender] = useState(0);
   const runStartedAt = useRef(Date.now());
@@ -169,6 +199,10 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
     );
     return () => window.clearInterval(timer);
   }, [services]);
+
+  useEffect(() => {
+    window.localStorage.setItem('hs-heist:audio-settings', JSON.stringify(audioSettings));
+  }, [audioSettings]);
 
   useEffect(() => {
     if (snapshot.runId && snapshot.runId !== previousRun.current) {
@@ -359,12 +393,13 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
           ? runtimeStatus.prompt.split('—').slice(1).join('—')
           : runtimeStatus.pointerLocked
             ? 'Keep moving. Your partner is reacting to the same mission state.'
-            : 'Click the scene to lock the mouse and take control.',
+            : runtimeStatus.pointerLock.message ?? 'Click the scene to lock the mouse and take control.',
       }
     : null;
 
   return (
     <div className={`app-shell ${missionVisible ? 'app-shell--mission' : ''}`}>
+      <AgentPartnerBrief />
       {atmosphere ? (
         <>
           <div className="fx fx--bays" aria-hidden="true" />
@@ -384,6 +419,8 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
             if (savedCheckpoint) services.store.continueFromCheckpoint(savedCheckpoint.checkpoint, savedCheckpoint.runId);
           }}
           onOpenMemory={() => openMemory('NONE')}
+          inputDevice={runtimeStatus.inputDevice}
+          radioLines={radioLines}
         />
       ) : null}
 
@@ -393,7 +430,12 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
 
       {missionVisible ? (
         <>
-          <GameCanvas services={services} onStatus={handleRuntimeStatus} />
+          <GameCanvas
+            services={services}
+            onStatus={handleRuntimeStatus}
+            audioSettings={audioSettings}
+            onPauseRequest={pauseMission}
+          />
           <Hud
             characters={[
               {
@@ -431,6 +473,7 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
             onCallout={sendCallout}
             memoryNotice={partnerEvents.at(-1)?.type === 'MEMORY_UPDATED' ? partnerEvents.at(-1)?.summary : null}
             showReticle={snapshot.section !== 'CHASE' || snapshot.humanCharacter === 'CODY'}
+            minimap={runtimeStatus.minimap}
           />
         </>
       ) : null}
@@ -505,12 +548,15 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
           onOpenMemory={() => openMemory('PAUSE')}
           onRestartCheckpoint={restartCheckpoint}
           onReturnToPairing={returnToPairing}
+          audio={audioSettings}
+          onAudioChange={setAudioSettings}
         />
       ) : null}
 
       {overlay === 'CONTROLS' ? (
         <ControlsOverlay
           variant={overlayReturn === 'NONE' && snapshot.section === 'FACILITY_ONE' ? 'FIRST_RUN' : 'REFERENCE'}
+          device={runtimeStatus.inputDevice}
           onDismiss={closeSecondaryOverlay}
         />
       ) : null}

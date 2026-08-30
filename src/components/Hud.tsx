@@ -1,3 +1,6 @@
+import type { MinimapSnapshot } from '../game/presentation/minimapModel';
+import { TacticalMinimap } from './TacticalMinimap';
+
 export type HudCharacterId = 'OWEN' | 'CODY';
 export type HudController = 'HUMAN' | 'AGENT';
 export type HudBombStatus = 'UNPLACED' | 'PLANTING' | 'ARMED' | 'DETONATED';
@@ -67,6 +70,7 @@ export interface HudProps {
   onCallout?: (calloutId: string) => void;
   memoryNotice?: string | null;
   showReticle?: boolean;
+  minimap?: MinimapSnapshot | null;
 }
 
 export const DEFAULT_CALLOUTS: readonly HudCallout[] = [
@@ -173,6 +177,7 @@ export function Hud({
   onCallout,
   memoryNotice = null,
   showReticle = true,
+  minimap = null,
 }: HudProps) {
   const visibleLines = radioLines.slice(-SUBTITLE_WINDOW);
   const vehicleFraction = vehicle ? ratio(vehicle.integrity, vehicle.maxIntegrity) : 0;
@@ -219,6 +224,12 @@ export function Hud({
           {switchNotice ? <p className="hud__switchtext">{switchNotice}</p> : null}
         </div>
       </section>
+
+      {minimap ? (
+        <section className="hud__map" aria-label="Navigation">
+          <TacticalMinimap snapshot={minimap} />
+        </section>
+      ) : null}
 
       <section className="hud__lower" aria-label="Partner communication">
         {prompt ? (

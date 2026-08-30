@@ -55,11 +55,14 @@ The event wait is bounded and abortable. Session IDs, decision IDs, actions, dea
 
 - TypeScript strict build: passing.
 - Oxlint with warnings denied: passing.
-- Vitest: 11 files / 51 tests passing.
-- Playwright: 3 end-to-end journeys passing in a production test-mode build.
-- The browser journey invokes the actual registered tool handlers for pairing, bomb decisions, failure evidence, memory creation, pursuer prioritization, and debrief.
-- Pointer-lock request/event wiring, movement modifiers, crouch input, right-mouse aim input, firing/ammunition, and free switching are covered through a test-only browser host shim.
-- Physical mouse feel and a real ChatGPT/Chrome WebMCP host still require final human QA after deployment.
+- Vitest: 23 files / 97 tests passing in the final clean release gate.
+- Playwright: 4 end-to-end journeys passing in a production test-mode build in the final clean release gate.
+- The browser journeys invoke the actual registered tool handlers for pairing, direct agent instructions, pre-mission subtitles, bomb decisions, failure evidence, memory creation, pursuer prioritization, and debrief.
+- Pointer-lock request/event wiring and deliberate denial recovery, movement, default sprint, right-mouse aim, firing/ammunition, active enemy combat, interactive training, minimap states, and free switching are covered through a test-only browser host shim.
+- Xbox/PlayStation mappings, dead zones, input switching, controller-only aim assistance, audio intensity, grounded movement, enemy tactics, and view-model poses have deterministic unit coverage.
+- Chrome, Zen, and Safari are installed on the development machine. No supported controller was connected during the release gate, so physical controller feel is not claimed.
+- Physical mouse/controller play and a real ChatGPT/Chrome WebMCP host still require final human QA after deployment.
+- Production build: passing. Its lazy Babylon runtime chunk is approximately 1.0 MB minified / 252 KB gzip and produces Vite's non-blocking large-chunk advisory.
 
 ## Screenshot shortlist
 
@@ -96,7 +99,7 @@ Record real tool calls and the live game in one continuous supported-host sessio
 - Create and push a public GitHub/GitLab/Bitbucket repository; confirm the MIT license is detected at the top of the repo.
 - Deploy the normal production build to a public HTTPS URL.
 - Test all ten tools through ChatGPT’s in-app browser or Chrome with WebMCP enabled and record the exact tested client(s).
-- Run one physical keyboard/mouse play-through and one failure → lesson → changed-action loop on the deployed build.
+- Run one physical keyboard/external-mouse play-through, one Xbox or PlayStation controller play-through, and one failure → lesson → changed-action loop on the deployed build.
 - Record and publish the under-three-minute YouTube demo with audio.
 - Choose the final thumbnail and public screenshots.
 - Supply the public live URL, public repo URL, video URL, and any final submission answers.

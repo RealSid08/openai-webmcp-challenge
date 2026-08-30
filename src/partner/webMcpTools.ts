@@ -1,6 +1,7 @@
 import type { MissionStore, PartnerTactic } from '../game/MissionStore';
 import type { MemoryRepository } from '../memory/MemoryRepository';
 import type { PartnerCoordinator } from './PartnerCoordinator';
+import { createPartnerBrief } from './partnerBrief';
 
 type JsonSchema = Record<string, unknown>;
 
@@ -74,20 +75,7 @@ export function createWebMcpTools({
         'Read the current heist pairing state, characters, controls, partnership rules, and continuous event-loop instructions without changing the mission.',
       inputSchema: objectSchema({}),
       annotations: { readOnlyHint: true },
-      execute: async () => ({
-        title: 'HS: Heist',
-        characters: [
-          { id: 'OWEN', name: 'Owen “Aye” Mercer', specialty: 'cover and detonation' },
-          { id: 'CODY', name: 'Cody “X” Vance', specialty: 'point and charge planting' },
-        ],
-        rules: [
-          'The human controls one physical infiltrator and you control the other.',
-          'Call wait_for_mission_event repeatedly and answer required decisions before their deadlines.',
-          'There is no production fallback partner. A missed required decision fails the checkpoint.',
-          'Relevant local memory lessons are observations, not model training or fine-tuning.',
-        ],
-        pairing: store.getSnapshot().partner,
-      }),
+      execute: async () => createPartnerBrief(store.getSnapshot()),
     },
     {
       name: 'wait_for_mission_event',

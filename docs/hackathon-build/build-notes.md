@@ -187,3 +187,36 @@
 - All twelve checklist items are complete for the local proof of concept. The release remains deliberately unsubmitted.
 - Created `docs/hackathon-build/submission-handoff.md` with the project story, WebMCP explanation, honest AI usage, judging alignment, screenshot shortlist, under-three-minute demo plan, and exact external blockers.
 - A public repository, HTTPS deployment, real ChatGPT/Chrome WebMCP session, physical keyboard/mouse play-through, YouTube video, thumbnail, and explicit submission approval remain outside the local build and must happen before submission.
+
+## 2026-08-29 — Gameplay systems rebuild
+
+### Input and player feel
+
+- Replaced the fragile click-to-lock path with an explicit pointer-capture controller and a visible `TAKE CONTROL` action. Pointer denial is a recoverable state: gameplay continues and right-drag look remains available.
+- Decoupled the authoritative mission clock from pointer lock and the Babylon render loop. Losing or denying mouse capture can no longer freeze enemies, decisions, checkpoints, or the mission.
+- Added one input router for keyboard/mouse and standard browser gamepads, with Xbox and PlayStation labeling, radial dead zones, device switching, and reset-safe edge inputs.
+- Sprint now starts enabled and `Shift` or `L3`/`LS` toggles walking. Ground acceleration, braking, reversal, footstep cadence, camera bob, recoil, reload motion, and sprint weapon posture replace the previous gliding feel.
+- Added controller-only line-of-sight aim assistance. Mouse aim remains unassisted.
+
+### Mission teaching, combat, and presentation
+
+- Added two full-height opening cover walls with a central breach, followed by a skippable in-world tutorial for movement, aim, firing, partner callouts, and character switching.
+- Enemies now reserve cover, move visibly between positions, acquire valid targets, telegraph attacks, fire timed bursts, miss as well as hit, produce tracers and muzzle flashes, and inflict real character damage. Combat is suppressed only during the tutorial.
+- Added a camera-attached two-hand first-person weapon with a readable frame, slide, barrel, muzzle, grip, forearms, aim-down-sights movement, sway, bob, recoil, reload, and sprint poses.
+- Added a lower-left tactical minimap for both facility and chase. It shows the player, partner, living enemies or pursuers, current route/objective, and the next authored chase turn.
+- Added an adaptive procedural score plus differentiated human, partner, and enemy shots; footsteps; reload and empty-weapon cues; impacts; near misses; alarm; breach explosion; radio; switch; and chase engine audio. Music and effects have separate persistent pause-menu sliders.
+
+### Agent operating contract
+
+- Added a canonical partner brief returned directly by `join_heist` and `get_mission_briefing`. It assigns the physical off-character, explains the game, reserves `START HEIST` for the human, requires repeated event waits, treats checkpoint failure as recoverable, and stops only on a terminal mission result.
+- The brief is also present as semantic page content for host discovery. There is no copy-prompt UI and no agent-accessible start tool.
+- Agent radio subtitles now render on the pairing screen before the human starts, as well as inside the live game.
+
+### Rebuild verification boundary
+
+- The test suite covers successful pointer-capture wiring and deliberate capture denial, keyboard and gamepad routing, default sprint, aim assistance, grounded movement, tutorial progression and skip, enemy tactics/damage, first-person presentation state, minimap models, adaptive audio, partner instructions, checkpoints, the bomb gate, the chase, and memory-backed adaptation.
+- Six polished state captures are retained under `docs/hackathon-build/evidence/`: pairing, facility, bomb gate, chase, failure, and debrief.
+- Raw Cursor CLI was used as requested. Both a Grok 4.6 High non-fast visual pass and a Claude Opus 5 High non-fast pass were attempted during final polish; both remained idle without output or file changes and were stopped cleanly. Codex completed and verified the bounded visual refinements locally.
+- Pinned the test-only DOM runtime to jsdom 29.1.1, whose declared Node range includes the development machine's Node 24.14. This removed the clean-install engine warning without changing shipped game code.
+- Final clean gate: `npm ci`, Oxlint, strict TypeScript, 23 Vitest files / 97 tests, four Playwright journeys, production build, and `git diff --check` all exited successfully. The build reports one advisory for the lazy Babylon runtime chunk (about 1.0 MB minified / 252 KB gzip); it does not block the build.
+- Chrome, Zen, and Safari were present on the development Mac. No Xbox, DualShock, or DualSense controller was connected, so physical controller feel is not claimed. Real ChatGPT/Chrome WebMCP hosting, physical controller/mouse play, public deployment, repository publication, demo recording, and Devpost submission remain external release steps.

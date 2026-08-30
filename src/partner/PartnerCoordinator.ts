@@ -1,5 +1,6 @@
 import type { MissionStore, PartnerTactic } from '../game/MissionStore';
 import type { MemoryRepository } from '../memory/MemoryRepository';
+import { createPartnerBrief } from './partnerBrief';
 
 interface PartnerCoordinatorOptions {
   store: MissionStore;
@@ -38,13 +39,13 @@ export class PartnerCoordinator {
 
   join(name: string) {
     const joined = this.options.store.joinPartner(name.trim() || 'Codex');
+    const briefing = createPartnerBrief(this.options.store.getSnapshot());
     return {
       ok: true as const,
       status: 'PARTNER_ONLINE' as const,
       sessionId: joined.sessionId,
       alreadyJoined: joined.alreadyJoined,
-      instructions:
-        'Stay with the mission until it reaches a terminal result. Call wait_for_mission_event repeatedly, then use the available tactic or decision tool before any visible deadline.',
+      ...briefing,
     };
   }
 

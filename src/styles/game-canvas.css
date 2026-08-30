@@ -28,9 +28,8 @@
 
 .game-canvas-shell::after {
   background:
-    linear-gradient(180deg, rgb(2 4 5 / 28%) 0%, transparent 14%),
-    linear-gradient(90deg, rgb(2 4 5 / 22%) 0%, transparent 12%, transparent 88%, rgb(2 4 5 / 22%) 100%);
-  mix-blend-mode: multiply;
+    linear-gradient(180deg, rgb(2 4 5 / 18%) 0%, transparent 15%),
+    linear-gradient(90deg, rgb(2 4 5 / 13%) 0%, transparent 10%, transparent 90%, rgb(2 4 5 / 13%) 100%);
 }
 
 .game-canvas {
@@ -41,6 +40,39 @@
   outline: 0;
   touch-action: none;
   background: #020405;
+}
+
+.take-control {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  top: clamp(1rem, 2.5vh, 1.75rem);
+  display: grid;
+  gap: 0.25rem;
+  width: min(31rem, calc(100% - 2rem));
+  padding: 0.85rem 1rem;
+  color: var(--fog);
+  text-align: left;
+  background: rgb(3 8 9 / 88%);
+  border: 1px solid rgb(119 215 207 / 46%);
+  translate: -50% 0;
+  cursor: pointer;
+}
+
+.game-canvas-shell:has(.take-control) + .hud .hudprompt {
+  display: none;
+}
+
+.take-control strong {
+  color: var(--signal);
+  font-family: var(--font-stencil);
+  font-size: 0.72rem;
+  letter-spacing: 0.13em;
+}
+
+.take-control span {
+  color: var(--mist);
+  font-size: 0.75rem;
 }
 
 .runtime-error {

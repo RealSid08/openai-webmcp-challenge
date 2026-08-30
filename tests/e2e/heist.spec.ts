@@ -20,11 +20,16 @@ interface HeistTestDriver {
     partner: { sessionId: string | null };
     requiredDecision: { id: string } | null;
     history: Array<{ id: string; type: string }>;
+    characters: Record<'OWEN' | 'CODY', { health: number }>;
+    section: 'FACILITY_ONE' | 'FACILITY_TWO' | 'BOMB_GATE' | 'CHASE' | null;
   };
 }
 
-async function installWebMcpHarness(page: Page) {
-  await page.addInitScript(() => {
+async function installWebMcpHarness(
+  page: Page,
+  options: { pointerLock?: 'ACCEPT' | 'DENY' } = {},
+) {
+  await page.addInitScript(({ pointerLock }) => {
     const tools: RegisteredTool[] = [];
     let pointerLocked = false;
     Object.defineProperty(window, '__HS_WEBMCP_TOOLS__', { value: tools });
@@ -33,6 +38,9 @@ async function installWebMcpHarness(page: Page) {
       get: () => (pointerLocked ? document.querySelector('canvas') : null),
     });
     HTMLCanvasElement.prototype.requestPointerLock = function requestPointerLock() {
+      if (pointerLock === 'DENY') {
+        return Promise.reject(new DOMException('Pointer capture denied by test browser.', 'NotAllowedError'));
+      }
       pointerLocked = true;
       document.dispatchEvent(new Event('pointerlockchange'));
       return Promise.resolve();
@@ -49,7 +57,7 @@ async function installWebMcpHarness(page: Page) {
       },
       configurable: true,
     });
-  });
+  }, { pointerLock: options.pointerLock ?? 'ACCEPT' });
 }
 
 async function executeTool(
@@ -70,6 +78,19 @@ async function executeTool(
   );
 }
 
+async function captureEvidence(page: Page, state: string) {
+  for (const viewport of [
+    { width: 1280, height: 720 },
+    { width: 1920, height: 1080 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.screenshot({
+      path: `/tmp/hs-heist-${state}-${viewport.width}x${viewport.height}.png`,
+    });
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
+}
+
 test('pairs through the registered WebMCP tool and enters the live Babylon mission', async ({
   page,
 }) => {
@@ -83,6 +104,8 @@ test('pairs through the registered WebMCP tool and enters the live Babylon missi
   await page.goto('/');
   await expect(page.getByText('WAITING FOR PARTNER')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Start heist' })).toBeDisabled();
+  await page.waitForTimeout(900);
+  await captureEvidence(page, 'pairing');
 
   const names = await page.evaluate(() =>
     (window as unknown as { __HS_WEBMCP_TOOLS__: RegisteredTool[] }).__HS_WEBMCP_TOOLS__.map(
@@ -115,17 +138,17 @@ test('pairs through the registered WebMCP tool and enters the live Babylon missi
   await expect(page.getByText('RealSid Games Presents')).toBeVisible();
 
   await expect(page.getByRole('dialog', { name: 'Controls' })).toBeVisible({ timeout: 6_000 });
-  await page.getByRole('button', { name: 'Start the fight' }).click();
+  await page.getByRole('button', { name: 'Start the fight' }).click({ timeout: 10_000 });
   await expect(page.getByLabel('HS: Heist first-person game')).toBeVisible();
-  await expect(page.getByText('ESCAPE THE LOCKDOWN')).toBeVisible();
+  await expect(page.getByLabel('Objective', { exact: true }).getByText('ESCAPE THE LOCKDOWN')).toBeVisible();
   await expect(page.getByText('Owen “Aye” Mercer')).toBeVisible();
   await expect(page.getByText('Cody “X” Vance')).toBeVisible();
-  await expect(page.getByText('CLICK TO TAKE CONTROL')).toBeVisible();
+  await expect(page.getByRole('button', { name: /TAKE CONTROL/ })).toBeVisible();
 
-  await page.screenshot({ path: '/tmp/hs-heist-live-facility.png' });
+  await captureEvidence(page, 'facility');
   const canvas = page.getByLabel('HS: Heist first-person game');
   await canvas.click({ position: { x: 700, y: 450 } });
-  await expect(page.getByText('CLICK TO TAKE CONTROL')).toBeHidden();
+  await expect(page.getByRole('button', { name: /TAKE CONTROL/ })).toBeHidden();
   await canvas.click({ position: { x: 700, y: 450 } });
   await expect(page.getByLabel('Loadout and vehicle')).toContainText('17/72');
   await page.keyboard.down('Shift');
@@ -144,6 +167,40 @@ test('pairs through the registered WebMCP tool and enters the live Babylon missi
   expect(errors).toEqual([]);
 });
 
+test('keeps the live encounter running when the browser denies mouse capture', async ({ page }) => {
+  await installWebMcpHarness(page, { pointerLock: 'DENY' });
+  await page.goto('/');
+  await executeTool(page, 'join_heist', { agentName: 'Codex' });
+  await page.getByRole('button', { name: 'Start heist' }).click();
+  await page.getByRole('button', { name: 'Start the fight' }).click({ timeout: 10_000 });
+
+  await page.getByRole('button', { name: /TAKE CONTROL/ }).click();
+  await expect(page.getByText('MOUSE CAPTURE DENIED')).toBeVisible();
+
+  await page.keyboard.down('t');
+  await page.waitForTimeout(1_000);
+  await page.keyboard.up('t');
+  await page.keyboard.down('d');
+  await page.waitForTimeout(900);
+  await page.keyboard.up('d');
+  await page.keyboard.down('w');
+  await page.waitForTimeout(1_200);
+  await page.keyboard.up('w');
+
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const snapshot = (window as unknown as { __HS_TEST_DRIVER__: HeistTestDriver })
+            .__HS_TEST_DRIVER__.snapshot();
+          return snapshot.section === 'FACILITY_TWO' ||
+            snapshot.history.some((event) => event.type === 'CHECKPOINT_REACHED');
+        }),
+      { timeout: 8_000, message: 'the live encounter should clear without pointer lock' },
+    )
+    .toBe(true);
+});
+
 test('keeps pause, controls, and memory usable over the live scene', async ({ page }) => {
   await installWebMcpHarness(page);
   await page.goto('/');
@@ -154,7 +211,7 @@ test('keeps pause, controls, and memory usable over the live scene', async ({ pa
     await join.execute({ agentName: 'Codex' }, { signal: new AbortController().signal });
   });
   await page.getByRole('button', { name: 'Start heist' }).click();
-  await page.getByRole('button', { name: 'Start the fight' }).click({ timeout: 6_000 });
+  await page.getByRole('button', { name: 'Start the fight' }).click({ timeout: 10_000 });
 
   await page.keyboard.press('m');
   const memory = page.getByRole('dialog', { name: 'Partner memory' });
@@ -178,7 +235,7 @@ test('proves the bomb, chase, failure, memory, adaptation, and debrief loop', as
   const joined = await executeTool(page, 'join_heist', { agentName: 'Codex' });
   const sessionId = joined.sessionId as string;
   await page.getByRole('button', { name: 'Start heist' }).click();
-  await page.getByRole('button', { name: 'Start the fight' }).click({ timeout: 6_000 });
+  await page.getByRole('button', { name: 'Start the fight' }).click({ timeout: 10_000 });
 
   await page.evaluate(() => {
     const driver = (window as unknown as { __HS_TEST_DRIVER__?: HeistTestDriver })
@@ -187,7 +244,8 @@ test('proves the bomb, chase, failure, memory, adaptation, and debrief loop', as
     driver.completeEncounter();
     driver.completeEncounter();
   });
-  await expect(page.getByText('PLANT THE CHARGE')).toBeVisible();
+  await expect(page.getByLabel('Objective', { exact: true }).getByText('PLANT THE CHARGE')).toBeVisible();
+  await captureEvidence(page, 'bomb-gate');
 
   let snapshot = await page.evaluate(() =>
     (window as unknown as { __HS_TEST_DRIVER__: HeistTestDriver }).__HS_TEST_DRIVER__.snapshot(),
@@ -220,18 +278,19 @@ test('proves the bomb, chase, failure, memory, adaptation, and debrief loop', as
     driver.detonateCharge();
     driver.startChase();
   });
-  await expect(page.getByText('ESCAPE THE PURSUIT')).toBeVisible();
+  await expect(page.getByLabel('Objective', { exact: true }).getByText('ESCAPE THE PURSUIT')).toBeVisible();
   await expect(page.getByText('Getaway car')).toBeVisible();
   await page.evaluate(() =>
     (window as unknown as { __HS_TEST_DRIVER__: HeistTestDriver }).__HS_TEST_DRIVER__.takeShooterSeat(),
   );
   await expect(page.getByLabel('Infiltrator status')).toContainText('Cody “X” VanceYou');
-  await page.screenshot({ path: '/tmp/hs-heist-live-chase.png' });
+  await captureEvidence(page, 'chase');
 
   await page.evaluate(() =>
     (window as unknown as { __HS_TEST_DRIVER__: HeistTestDriver }).__HS_TEST_DRIVER__.destroyVehicle(),
   );
   await expect(page.getByText('Vehicle destroyed')).toBeVisible();
+  await captureEvidence(page, 'failure');
   snapshot = await page.evaluate(() =>
     (window as unknown as { __HS_TEST_DRIVER__: HeistTestDriver }).__HS_TEST_DRIVER__.snapshot(),
   );
@@ -247,7 +306,7 @@ test('proves the bomb, chase, failure, memory, adaptation, and debrief loop', as
   const lessonId = lessonResult.lessonId as string;
 
   await expect(page.getByText('Vehicle destroyed')).toBeHidden({ timeout: 4_000 });
-  await expect(page.getByText('ESCAPE THE PURSUIT')).toBeVisible();
+  await expect(page.getByLabel('Objective', { exact: true }).getByText('ESCAPE THE PURSUIT')).toBeVisible();
   await executeTool(page, 'prioritize_pursuer', {
     sessionId,
     targetId: 'CLOSEST',
@@ -266,5 +325,5 @@ test('proves the bomb, chase, failure, memory, adaptation, and debrief loop', as
     }).first(),
   ).toBeVisible();
   await expect(page.getByText('CHASE_TARGETING').first()).toBeVisible();
-  await page.screenshot({ path: '/tmp/hs-heist-live-debrief.png' });
+  await captureEvidence(page, 'debrief');
 });

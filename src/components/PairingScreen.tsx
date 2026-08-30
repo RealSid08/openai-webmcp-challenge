@@ -1,3 +1,6 @@
+import type { InputDevice } from '../game/input/inputBindings';
+import type { HudRadioLine } from './Hud';
+
 export type PairingScreenProps = {
   /** True only after a real WebMCP agent has completed `join_heist`. */
   partnerOnline?: boolean;
@@ -10,6 +13,8 @@ export type PairingScreenProps = {
   onStartHeist?: () => void;
   onContinueFromCheckpoint?: () => void;
   onOpenMemory?: () => void;
+  inputDevice?: InputDevice;
+  radioLines?: readonly HudRadioLine[];
 };
 
 const CREW = [
@@ -52,8 +57,11 @@ export function PairingScreen({
   onStartHeist,
   onContinueFromCheckpoint,
   onOpenMemory,
+  inputDevice = 'KEYBOARD_MOUSE',
+  radioLines = [],
 }: PairingScreenProps) {
   const partnerLabel = partnerName?.trim() || 'The partner';
+  const visibleRadioLines = radioLines.slice(-2);
 
   return (
     <div className="pair">
@@ -143,6 +151,17 @@ export function PairingScreen({
             </button>
           </div>
 
+          {visibleRadioLines.length > 0 ? (
+            <div className="pair__radio" aria-live="polite" aria-label="Partner radio">
+              {visibleRadioLines.map((line) => (
+                <p key={line.id} className={line.priority === 'CRITICAL' ? 'pair__radio-line pair__radio-line--critical' : 'pair__radio-line'}>
+                  <span>{line.speaker}</span>
+                  {line.text}
+                </p>
+              ))}
+            </div>
+          ) : null}
+
           {partnerOnline ? null : (
             <p className="pair__locknote" id="pair-lock-note">
               Start unlocks the moment the partner joins
@@ -166,7 +185,10 @@ export function PairingScreen({
       </main>
 
       <footer className="pair__rail pair__rail--bottom">
-        <span>Desktop · Keyboard + mouse</span>
+        <span>
+          Best experienced with a controller or external mouse
+          {inputDevice === 'KEYBOARD_MOUSE' ? '' : ` · ${inputDevice === 'PLAYSTATION' ? 'PlayStation' : inputDevice === 'XBOX' ? 'Xbox' : 'Controller'} active`}
+        </span>
         <span className="pair__rail-item--optional">No solo mode</span>
         <span className="pair__rail-spacer" />
         <span className="pair__rail-item--optional">
