@@ -42,6 +42,10 @@
   background: #020405;
 }
 
+.game-canvas-shell--lockless .game-canvas {
+  cursor: none;
+}
+
 .take-control {
   position: absolute;
   z-index: 4;

@@ -3,8 +3,7 @@ export type PointerLockState =
   | 'REQUESTING'
   | 'LOCKED'
   | 'RELEASED'
-  | 'DENIED'
-  | 'UNAVAILABLE';
+  | 'LOCKLESS';
 
 export interface PointerLockSnapshot {
   state: PointerLockState;
@@ -20,16 +19,40 @@ const INITIAL_SNAPSHOT: PointerLockSnapshot = {
   message: null,
 };
 
+const LOCKLESS_SNAPSHOT: PointerLockSnapshot = {
+  state: 'LOCKLESS',
+  canRetry: false,
+  dragFallback: true,
+  message: null,
+};
+
+const EDGE_TURN_START = 0.72;
+
+function edgeTurnAxis(position: number, start: number, size: number): number {
+  if (size <= 0) return 0;
+  const normalized = Math.max(-1, Math.min(1, ((position - start) / size) * 2 - 1));
+  const magnitude = Math.abs(normalized);
+  if (magnitude <= EDGE_TURN_START) return 0;
+  const strength = (magnitude - EDGE_TURN_START) / (1 - EDGE_TURN_START);
+  return Math.sign(normalized) * strength * strength;
+}
+
+export function isMouseLookActive(state: PointerLockState): boolean {
+  return state === 'LOCKED' || state === 'LOCKLESS';
+}
+
 export class PointerLockController {
   private snapshot = INITIAL_SNAPSHOT;
   private readonly listeners = new Set<(snapshot: PointerLockSnapshot) => void>();
-  private dragActive = false;
-  private dragDelta = { x: 0, y: 0 };
+  private locklessEdgeTurn = { x: 0, y: 0 };
 
   private readonly onPointerLockChange = () => {
     if (this.owner.pointerLockElement === this.canvas) {
+      this.locklessEdgeTurn = { x: 0, y: 0 };
       this.publish({ state: 'LOCKED', canRetry: false, dragFallback: false, message: null });
-    } else if (this.snapshot.state === 'LOCKED' || this.snapshot.state === 'REQUESTING') {
+    } else if (this.snapshot.state === 'REQUESTING') {
+      this.enableLockless();
+    } else if (this.snapshot.state === 'LOCKED') {
       this.publish({
         state: 'RELEASED',
         canRetry: true,
@@ -39,16 +62,12 @@ export class PointerLockController {
     }
   };
 
-  private readonly onPointerLockError = () => {
-    this.publish({
-      state: 'DENIED',
-      canRetry: true,
-      dragFallback: true,
-      message: 'Mouse capture was denied. Try again, use a controller, or hold right-click to look.',
-    });
-  };
+  private readonly onPointerLockError = () => this.enableLockless();
 
   private readonly onPointerMove = (event: PointerEvent) => this.handlePointerMove(event);
+  private readonly onPointerLeave = () => {
+    this.locklessEdgeTurn = { x: 0, y: 0 };
+  };
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -57,6 +76,7 @@ export class PointerLockController {
     owner.addEventListener('pointerlockchange', this.onPointerLockChange);
     owner.addEventListener('pointerlockerror', this.onPointerLockError);
     canvas.addEventListener('pointermove', this.onPointerMove);
+    canvas.addEventListener('pointerleave', this.onPointerLeave);
   }
 
   getSnapshot(): PointerLockSnapshot {
@@ -65,12 +85,7 @@ export class PointerLockController {
 
   async request(): Promise<PointerLockSnapshot> {
     if (typeof this.canvas.requestPointerLock !== 'function') {
-      this.publish({
-        state: 'UNAVAILABLE',
-        canRetry: false,
-        dragFallback: true,
-        message: 'This browser cannot capture the mouse. Use a controller or hold right-click to look.',
-      });
+      this.enableLockless();
       return this.snapshot;
     }
 
@@ -80,18 +95,13 @@ export class PointerLockController {
     try {
       await Promise.resolve(this.canvas.requestPointerLock());
       if (this.owner.pointerLockElement === this.canvas) {
+        this.locklessEdgeTurn = { x: 0, y: 0 };
         this.publish({ state: 'LOCKED', canRetry: false, dragFallback: false, message: null });
       } else if (this.snapshot.state === 'REQUESTING') {
-        this.onPointerLockError();
+        this.enableLockless();
       }
-    } catch (reason: unknown) {
-      const detail = reason instanceof Error && reason.message ? ` ${reason.message}` : '';
-      this.publish({
-        state: 'DENIED',
-        canRetry: true,
-        dragFallback: true,
-        message: `Mouse capture was denied.${detail} Try again, use a controller, or hold right-click to look.`,
-      });
+    } catch {
+      this.enableLockless();
     }
     return this.snapshot;
   }
@@ -100,21 +110,17 @@ export class PointerLockController {
     if (this.owner.pointerLockElement === this.canvas) this.owner.exitPointerLock?.();
   }
 
-  setDragActive(active: boolean): void {
-    this.dragActive = active;
-    if (!active) this.dragDelta = { x: 0, y: 0 };
+  handlePointerMove(event: Pick<PointerEvent, 'clientX' | 'clientY'>): void {
+    if (this.snapshot.state !== 'LOCKLESS') return;
+    const bounds = this.canvas.getBoundingClientRect();
+    this.locklessEdgeTurn = {
+      x: edgeTurnAxis(event.clientX, bounds.left, bounds.width),
+      y: edgeTurnAxis(event.clientY, bounds.top, bounds.height),
+    };
   }
 
-  handlePointerMove(event: Pick<PointerEvent, 'movementX' | 'movementY'>): void {
-    if (!this.dragActive || this.snapshot.state === 'LOCKED') return;
-    this.dragDelta.x += event.movementX;
-    this.dragDelta.y += event.movementY;
-  }
-
-  consumeDragDelta(): { x: number; y: number } {
-    const delta = this.dragDelta;
-    this.dragDelta = { x: 0, y: 0 };
-    return delta;
+  getLocklessEdgeTurn(): Readonly<{ x: number; y: number }> {
+    return this.snapshot.state === 'LOCKLESS' ? this.locklessEdgeTurn : { x: 0, y: 0 };
   }
 
   subscribe(listener: (snapshot: PointerLockSnapshot) => void): () => void {
@@ -126,7 +132,13 @@ export class PointerLockController {
     this.owner.removeEventListener('pointerlockchange', this.onPointerLockChange);
     this.owner.removeEventListener('pointerlockerror', this.onPointerLockError);
     this.canvas.removeEventListener('pointermove', this.onPointerMove);
+    this.canvas.removeEventListener('pointerleave', this.onPointerLeave);
     this.listeners.clear();
+  }
+
+  private enableLockless(): void {
+    if (this.snapshot.state === 'LOCKLESS') return;
+    this.publish(LOCKLESS_SNAPSHOT);
   }
 
   private publish(snapshot: PointerLockSnapshot): void {

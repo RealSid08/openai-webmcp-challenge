@@ -69,20 +69,22 @@ export function GameCanvas({ services, onStatus, audioSettings, onPauseRequest }
   }, [audioSettings]);
 
   return (
-    <div className="game-canvas-shell">
+    <div
+      className={`game-canvas-shell ${pointerState.state === 'LOCKLESS' ? 'game-canvas-shell--lockless' : ''}`}
+    >
       <canvas
         ref={canvasRef}
         className="game-canvas"
         aria-label="HS: Heist first-person game"
         tabIndex={0}
       />
-      {pointerState.state !== 'LOCKED' ? (
+      {pointerState.state !== 'LOCKED' && pointerState.state !== 'LOCKLESS' ? (
         <button
           type="button"
           className="take-control"
           onClick={() => void runtimeRef.current?.requestControl()}
         >
-          <strong>{pointerState.state === 'DENIED' ? 'MOUSE CAPTURE DENIED' : 'TAKE CONTROL'}</strong>
+          <strong>TAKE CONTROL</strong>
           <span>
             {pointerState.message ?? 'Click to capture the mouse. A controller works without capture.'}
           </span>

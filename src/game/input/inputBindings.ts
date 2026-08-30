@@ -25,7 +25,7 @@ const KEYBOARD_GROUPS: readonly ControlGroup[] = [
       { keys: 'W A S D', action: 'Move' },
       { keys: 'Shift', action: 'Toggle sprint / walk', note: 'Sprint starts enabled' },
       { keys: 'Mouse', action: 'Look' },
-      { keys: 'Right mouse', action: 'Aim or drag-to-look fallback' },
+      { keys: 'Right mouse', action: 'Aim' },
     ],
   },
   {

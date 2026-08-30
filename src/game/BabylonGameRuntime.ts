@@ -21,7 +21,11 @@ import {
   type AimAssistCandidate,
 } from './input/aimAssist';
 import type { InputDevice } from './input/inputBindings';
-import { PointerLockController, type PointerLockSnapshot } from './input/PointerLockController';
+import {
+  isMouseLookActive,
+  PointerLockController,
+  type PointerLockSnapshot,
+} from './input/PointerLockController';
 import type { CharacterId, MissionSection } from './MissionStore';
 import { RuntimeVisualFactory, type RuntimeEnemy } from './RuntimeVisualFactory';
 import { FirstPersonViewModel } from './presentation/FirstPersonViewModel';
@@ -835,9 +839,8 @@ export class BabylonGameRuntime {
     });
     if (event.button === 2) {
       this.pressed.add('MouseRight');
-      this.pointerLock.setDragActive(true);
     }
-    if (this.pointerLock.getSnapshot().state !== 'LOCKED') {
+    if (!isMouseLookActive(this.pointerLock.getSnapshot().state)) {
       void this.pointerLock.request();
       return;
     }
@@ -847,7 +850,6 @@ export class BabylonGameRuntime {
   private handlePointerUp(event: PointerEvent): void {
     if (event.button === 2) {
       this.pressed.delete('MouseRight');
-      this.pointerLock.setDragActive(false);
     }
   }
 
@@ -950,12 +952,17 @@ export class BabylonGameRuntime {
 
   private updateHumanInput(input: InputFrame, dt: number, now: number): void {
     const snapshot = this.options.services.store.getSnapshot();
-    const pointerActive =
-      this.pointerLock.getSnapshot().state === 'LOCKED' || this.pressed.has('MouseRight');
+    const pointerState = this.pointerLock.getSnapshot().state;
+    const pointerActive = isMouseLookActive(pointerState);
     if (input.device !== 'KEYBOARD_MOUSE' || pointerActive) {
       const lookScale = input.device === 'KEYBOARD_MOUSE' ? 0.00165 : dt * 2.35;
       let yaw = input.look.x * lookScale;
       let pitch = input.look.y * lookScale;
+      if (input.device === 'KEYBOARD_MOUSE' && pointerState === 'LOCKLESS') {
+        const edgeTurn = this.pointerLock.getLocklessEdgeTurn();
+        yaw += edgeTurn.x * dt * 2.25;
+        pitch += edgeTurn.y * dt * 1.7;
+      }
       if (input.device !== 'KEYBOARD_MOUSE') {
         const assist = computeAimAssistCorrection(this.findAimAssistTarget(input.aim > 0.35), {
           inputDevice: input.device,
@@ -1191,13 +1198,11 @@ export class BabylonGameRuntime {
     const snapshot = this.options.services.store.getSnapshot();
     let prompt: string | null = null;
     const pointerLock = this.pointerLock.getSnapshot();
-    if (pointerLock.state !== 'LOCKED' && this.lastInputFrame.device === 'KEYBOARD_MOUSE') {
-      prompt = pointerLock.state === 'DENIED' || pointerLock.state === 'UNAVAILABLE'
-        ? 'MOUSE CAPTURE UNAVAILABLE — USE CONTROLLER OR HOLD RIGHT-CLICK TO LOOK'
-        : 'CLICK TO TAKE CONTROL';
+    if (!isMouseLookActive(pointerLock.state) && this.lastInputFrame.device === 'KEYBOARD_MOUSE') {
+      prompt = 'CLICK TO TAKE CONTROL';
     }
     const tutorial = this.tutorial.getSnapshot();
-    if (tutorial.active && (pointerLock.state === 'LOCKED' || this.lastInputFrame.device !== 'KEYBOARD_MOUSE')) {
+    if (tutorial.active && (isMouseLookActive(pointerLock.state) || this.lastInputFrame.device !== 'KEYBOARD_MOUSE')) {
       const trainingPrompts: Record<Exclude<TutorialSnapshot['step'], 'COMPLETE'>, string> = {
         MOVE: 'TRAINING — MOVE FROM COVER · HOLD T OR DPAD DOWN TO SKIP',
         AIM: 'TRAINING — AIM AT A HIGHLIGHTED GUARD',

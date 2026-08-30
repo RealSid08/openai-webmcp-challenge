@@ -39,7 +39,7 @@ On first entering the facility, a short interactive training sequence teaches mo
 | Input | Action |
 | --- | --- |
 | `W A S D` | Move on foot; steer while driving |
-| Mouse | Look after selecting `TAKE CONTROL`; right-drag is the fallback if pointer capture is denied |
+| Mouse | Look after selecting `TAKE CONTROL`; lockless edge turning activates seamlessly if pointer capture is denied |
 | Right mouse | Aim |
 | Left mouse | Fire |
 | `Shift` | Toggle sprint/walk; sprint is enabled by default |
@@ -133,7 +133,7 @@ React shell + HUD          Babylon.js world runtime
 - **PartnerCoordinator** exposes the event/action loop and keeps agent output as untrusted text.
 - **MemoryRepository** stores versioned structured lessons and produces deterministic Markdown.
 - **CheckpointRepository** stores only trusted checkpoint metadata; restores rebuild authored baselines rather than deserializing arbitrary world state.
-- **InputManager / PointerLockController** keep simulation independent from mouse capture, route keyboard and standard gamepads, and provide drag-to-look when pointer capture is denied.
+- **InputManager / PointerLockController** keep simulation independent from mouse capture, route keyboard and standard gamepads, and provide continuous movement plus edge-assisted turning when pointer capture is denied.
 - **EnemyDirector / PlayerMotor** provide visible cover movement, telegraphed enemy bursts, grounded acceleration and braking, default sprint, footsteps, and view bob.
 - **AdaptiveAudioDirector** mixes procedural ambience, escalating combat/chase layers, weapon variants, footsteps, impacts, near misses, alarms, explosions, radio, and engine audio. Music and effects volumes persist separately.
 
@@ -151,7 +151,7 @@ npm run build
 
 The Playwright journeys install a test-only WebMCP host during a test-mode production build. They call the real registered tool handlers and cover pairing, the direct partner brief, pre-mission radio subtitles, title, Babylon startup, interactive training, active enemy combat, pause/memory accessibility, the bomb gate, chase, failure restore, lesson recording, lesson-linked adaptation, and debrief. The test driver is compiled only in Vite's `test` mode and is absent from a normal production build.
 
-The browser suite also installs a test-only pointer-lock host shim because headless Chromium cannot capture the operating-system pointer. A separate denial journey proves that rejecting pointer capture does not freeze the simulation and that the drag-to-look recovery stays available. Controller mappings, dead zones, input switching, default sprint, and controller-only aim assist have deterministic automated coverage.
+The browser suite also installs a test-only pointer-lock host shim because headless Chromium cannot capture the operating-system pointer. A separate denial journey proves that rejection activates seamless lockless look, preserves normal firing, and does not freeze the simulation. Controller mappings, dead zones, input switching, default sprint, and controller-only aim assist have deterministic automated coverage.
 
 Automated verification cannot establish physical mouse or controller feel, and no compatible controller was connected to the development Mac during this release gate. A real supported-host WebMCP session and physical input play-through therefore remain explicit pre-submission checks.
 

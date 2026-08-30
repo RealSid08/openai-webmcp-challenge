@@ -175,7 +175,14 @@ test('keeps the live encounter running when the browser denies mouse capture', a
   await page.getByRole('button', { name: 'Start the fight' }).click({ timeout: 10_000 });
 
   await page.getByRole('button', { name: /TAKE CONTROL/ }).click();
-  await expect(page.getByText('MOUSE CAPTURE DENIED')).toBeVisible();
+  await expect(page.getByRole('button', { name: /TAKE CONTROL|MOUSE CAPTURE/ })).toBeHidden();
+  await expect(page.getByText('MOUSE CAPTURE DENIED')).toHaveCount(0);
+
+  const canvas = page.getByLabel('HS: Heist first-person game');
+  await page.mouse.move(720, 450);
+  await page.mouse.move(920, 450, { steps: 8 });
+  await canvas.click({ position: { x: 720, y: 450 } });
+  await expect(page.getByLabel('Loadout and vehicle')).toContainText('17/72');
 
   await page.keyboard.down('t');
   await page.waitForTimeout(1_000);

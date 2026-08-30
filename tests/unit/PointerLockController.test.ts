@@ -1,7 +1,10 @@
-import { PointerLockController } from '../../src/game/input/PointerLockController';
+import {
+  isMouseLookActive,
+  PointerLockController,
+} from '../../src/game/input/PointerLockController';
 
 describe('PointerLockController', () => {
-  it('reports a rejected request as retryable without disabling drag fallback', async () => {
+  it('seamlessly activates lockless control when pointer lock is rejected', async () => {
     const canvas = document.createElement('canvas');
     canvas.requestPointerLock = vi
       .fn<() => Promise<void>>()
@@ -11,39 +14,54 @@ describe('PointerLockController', () => {
     const snapshot = await controller.request();
 
     expect(snapshot).toMatchObject({
-      state: 'DENIED',
-      canRetry: true,
+      state: 'LOCKLESS',
+      canRetry: false,
       dragFallback: true,
+      message: null,
     });
-    expect(snapshot.message).toContain('denied');
+    expect(isMouseLookActive(snapshot.state)).toBe(true);
     controller.dispose();
   });
 
-  it('reports the unavailable state when the browser has no pointer lock API', async () => {
+  it('seamlessly activates lockless control when the browser has no pointer lock API', async () => {
     const canvas = document.createElement('canvas');
     Object.defineProperty(canvas, 'requestPointerLock', { configurable: true, value: undefined });
     const controller = new PointerLockController(canvas, document);
 
     expect(await controller.request()).toMatchObject({
-      state: 'UNAVAILABLE',
+      state: 'LOCKLESS',
       canRetry: false,
       dragFallback: true,
+      message: null,
     });
     controller.dispose();
   });
 
-  it('accumulates fallback look movement only while secondary drag is active', () => {
+  it('turns continuously near the canvas edge without requiring an aim button', async () => {
     const canvas = document.createElement('canvas');
+    canvas.requestPointerLock = vi.fn<() => Promise<void>>().mockRejectedValue(
+      new DOMException('Pointer lock was denied.', 'NotAllowedError'),
+    );
+    canvas.getBoundingClientRect = () => ({
+      bottom: 800,
+      height: 800,
+      left: 0,
+      right: 1_000,
+      top: 0,
+      width: 1_000,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
     const controller = new PointerLockController(canvas, document);
+    await controller.request();
 
-    controller.handlePointerMove({ movementX: 5, movementY: -2 } as PointerEvent);
-    expect(controller.consumeDragDelta()).toEqual({ x: 0, y: 0 });
+    controller.handlePointerMove({ clientX: 500, clientY: 400 } as PointerEvent);
+    expect(controller.getLocklessEdgeTurn()).toEqual({ x: 0, y: 0 });
 
-    controller.setDragActive(true);
-    controller.handlePointerMove({ movementX: 5, movementY: -2 } as PointerEvent);
-    controller.handlePointerMove({ movementX: 3, movementY: 1 } as PointerEvent);
-    expect(controller.consumeDragDelta()).toEqual({ x: 8, y: -1 });
-    expect(controller.consumeDragDelta()).toEqual({ x: 0, y: 0 });
+    controller.handlePointerMove({ clientX: 990, clientY: 400 } as PointerEvent);
+    expect(controller.getLocklessEdgeTurn().x).toBeGreaterThan(0.8);
+    expect(controller.getLocklessEdgeTurn().y).toBe(0);
     controller.dispose();
   });
 
