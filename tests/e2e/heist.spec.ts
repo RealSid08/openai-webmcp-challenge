@@ -253,14 +253,25 @@ test('keeps pause, controls, and memory usable over the live scene', async ({ pa
   await page.keyboard.press('Escape');
   const pause = page.getByRole('dialog', { name: 'Paused' });
   await expect(pause).toBeVisible();
+  const pauseSensitivity = pause.getByLabel('Mouse sensitivity');
+  await expect(pauseSensitivity).toHaveValue('0.7');
+  await pauseSensitivity.fill('0.45');
   await pause.getByRole('button', { name: 'Controls' }).click();
-  await expect(page.getByRole('dialog', { name: 'Controls' })).toBeVisible();
+  const controls = page.getByRole('dialog', { name: 'Controls' });
+  await expect(controls).toBeVisible();
+  const lookControls = controls.getByRole('group', { name: 'Look controls' });
+  await expect(lookControls).toContainText('LowDefaultHigh');
+  await expect(lookControls).not.toContainText('%');
+  await expect(lookControls.getByLabel('Mouse sensitivity')).toHaveValue('0.45');
   await page.getByRole('button', { name: 'Back' }).click();
+  await pause.getByRole('button', { name: 'Reset sensitivity' }).click();
+  await expect(pauseSensitivity).toHaveValue('0.7');
   await pause.getByRole('button', { name: 'Resume' }).click();
   await expect(pause).toBeHidden();
 });
 
 test('proves the bomb, chase, failure, memory, adaptation, and debrief loop', async ({ page }) => {
+  test.slow();
   await installWebMcpHarness(page);
   await page.goto('/');
   const joined = await executeTool(page, 'join_heist', { agentName: 'Codex' });

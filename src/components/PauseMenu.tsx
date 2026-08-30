@@ -1,5 +1,7 @@
 import { useDialogFocus } from './ControlsOverlay';
 import type { AudioSettings } from '../audio/AdaptiveAudioDirector';
+import { SensitivityControl } from './SensitivityControl';
+import type { ControlSettings } from '../game/input/controlSettings';
 
 export interface PauseMenuProps {
   sectionLabel?: string;
@@ -15,6 +17,8 @@ export interface PauseMenuProps {
   onReturnToPairing: () => void;
   audio: AudioSettings;
   onAudioChange: (settings: AudioSettings) => void;
+  controls: ControlSettings;
+  onControlsChange: (settings: ControlSettings) => void;
 }
 
 export function PauseMenu({
@@ -29,6 +33,8 @@ export function PauseMenu({
   onReturnToPairing,
   audio,
   onAudioChange,
+  controls,
+  onControlsChange,
 }: PauseMenuProps) {
   const { ref, onKeyDown } = useDialogFocus<HTMLDivElement>(onResume);
 
@@ -101,6 +107,8 @@ export function PauseMenu({
             />
           </label>
         </fieldset>
+
+        <SensitivityControl settings={controls} onChange={onControlsChange} />
 
         <div className="pausemenu">
           <button type="button" className="ui-btn ui-btn--primary" onClick={onResume}>
