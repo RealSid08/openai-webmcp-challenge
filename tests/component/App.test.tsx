@@ -66,6 +66,24 @@ describe('App', () => {
     services.destroy();
   });
 
+  it('locks the pairing screen again when the agent presence lease expires', async () => {
+    let now = 1_000;
+    const services = createServices(() => now);
+    render(<App services={services} compatibility="SUPPORTED" />);
+
+    act(() => {
+      services.coordinator.join('Codex');
+    });
+    expect(screen.getByRole('button', { name: 'Start heist' })).toBeEnabled();
+
+    now = 31_001;
+    await waitFor(() => expect(screen.getByText('WAITING FOR PARTNER')).toBeInTheDocument(), {
+      timeout: 500,
+    });
+    expect(screen.getByRole('button', { name: 'Start heist' })).toBeDisabled();
+    services.destroy();
+  });
+
   it('opens inspectable read-only partner memory from pairing', () => {
     const services = createServices();
     render(<App services={services} compatibility="SUPPORTED" />);

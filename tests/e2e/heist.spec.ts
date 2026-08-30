@@ -125,13 +125,8 @@ test('pairs through the registered WebMCP tool and enters the live Babylon missi
     'get_run_debrief',
   ]);
 
-  await page.evaluate(async () => {
-    const tools = (window as unknown as { __HS_WEBMCP_TOOLS__: RegisteredTool[] })
-      .__HS_WEBMCP_TOOLS__;
-    const join = tools.find((tool) => tool.name === 'join_heist');
-    if (!join) throw new Error('join_heist did not register');
-    await join.execute({ agentName: 'Codex' }, { signal: new AbortController().signal });
-  });
+  const joined = await executeTool(page, 'join_heist', { agentName: 'Codex' });
+  const sessionId = joined.sessionId as string;
 
   await expect(page.getByText('PARTNER ONLINE')).toBeVisible();
   await page.getByRole('button', { name: 'Start heist' }).click();
@@ -164,6 +159,35 @@ test('pairs through the registered WebMCP tool and enters the live Babylon missi
   await expect(page.getByRole('status', { name: 'Perspective switching' })).toBeHidden({
     timeout: 3_000,
   });
+
+  const abortedWait = await page.evaluate(async ({ activeSessionId }) => {
+    const wait = (window as unknown as { __HS_WEBMCP_TOOLS__: RegisteredTool[] })
+      .__HS_WEBMCP_TOOLS__.find((tool) => tool.name === 'wait_for_mission_event');
+    if (!wait) throw new Error('wait_for_mission_event did not register');
+    const controller = new AbortController();
+    const pending = wait.execute(
+      { sessionId: activeSessionId, lastSequence: 1_000_000, maxWaitMs: 15_000 },
+      { signal: controller.signal },
+    );
+    controller.abort();
+    try {
+      await pending;
+      return 'RESOLVED';
+    } catch (error) {
+      return error instanceof DOMException ? error.name : 'UNKNOWN_ERROR';
+    }
+  }, { activeSessionId: sessionId });
+  expect(abortedWait).toBe('AbortError');
+  await expect(page.getByText('Partner disconnected')).toBeVisible();
+  await expect(page.getByText('WAITING FOR PARTNER')).toBeVisible({ timeout: 4_000 });
+  await expect(page.getByRole('button', { name: 'Start heist' })).toBeDisabled();
+  expect(
+    await executeTool(page, 'set_partner_tactic', {
+      sessionId,
+      tactic: 'COVER',
+      radioLine: 'Trying the abandoned session.',
+    }),
+  ).toMatchObject({ ok: false, reason: 'INVALID_SESSION' });
   expect(errors).toEqual([]);
 });
 

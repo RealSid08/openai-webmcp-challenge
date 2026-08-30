@@ -21,6 +21,8 @@ interface PendingWait {
   finish: (event: PartnerEvent | null) => void;
 }
 
+const PARTNER_LEASE_MS = 30_000;
+
 export interface ResolvedPartnerDecision {
   decisionId: string;
   kind: string;
@@ -34,11 +36,13 @@ export class PartnerCoordinator {
   private readonly pending = new Set<PendingWait>();
   private readonly eventListeners = new Set<(event: PartnerEvent) => void>();
   private readonly decisionListeners = new Set<(decision: ResolvedPartnerDecision) => void>();
+  private lastPartnerSeenAt: number | null = null;
 
   constructor(private readonly options: PartnerCoordinatorOptions) {}
 
   join(name: string) {
     const joined = this.options.store.joinPartner(name.trim() || 'Codex');
+    this.lastPartnerSeenAt = this.options.now();
     const briefing = createPartnerBrief(this.options.store.getSnapshot());
     return {
       ok: true as const,
@@ -47,6 +51,20 @@ export class PartnerCoordinator {
       alreadyJoined: joined.alreadyJoined,
       ...briefing,
     };
+  }
+
+  touchSession(sessionId: string): boolean {
+    const partner = this.options.store.getSnapshot().partner;
+    if (!sessionId || !partner.online || partner.sessionId !== sessionId) return false;
+    this.lastPartnerSeenAt = this.options.now();
+    return true;
+  }
+
+  tickPresence(): void {
+    const sessionId = this.options.store.getSnapshot().partner.sessionId;
+    if (!sessionId || this.lastPartnerSeenAt === null) return;
+    if (this.options.now() - this.lastPartnerSeenAt <= PARTNER_LEASE_MS) return;
+    this.disconnectSession(sessionId);
   }
 
   publish(input: { type: string; summary: string; evidenceEventId?: string }): PartnerEvent {
@@ -103,7 +121,7 @@ export class PartnerCoordinator {
         reason: 'INVALID_SESSION' | 'STALE_DECISION' | 'ACTION_NOT_AVAILABLE' | 'DECISION_EXPIRED';
       } {
     const snapshot = this.options.store.getSnapshot();
-    if (snapshot.partner.sessionId !== input.sessionId) {
+    if (!this.touchSession(input.sessionId)) {
       return { ok: false, reason: 'INVALID_SESSION' };
     }
     const decision = snapshot.requiredDecision;
@@ -137,7 +155,7 @@ export class PartnerCoordinator {
   }):
     | { ok: true; tactic: PartnerTactic }
     | { ok: false; reason: 'INVALID_SESSION' | 'TACTIC_NOT_AVAILABLE' } {
-    if (this.options.store.getSnapshot().partner.sessionId !== input.sessionId) {
+    if (!this.touchSession(input.sessionId)) {
       return { ok: false, reason: 'INVALID_SESSION' };
     }
 
@@ -169,7 +187,7 @@ export class PartnerCoordinator {
         observation: ReturnType<PartnerCoordinator['createObservation']>;
       }
   > {
-    if (this.options.store.getSnapshot().partner.sessionId !== input.sessionId) {
+    if (!this.touchSession(input.sessionId)) {
       return { ok: false, reason: 'INVALID_SESSION' };
     }
 
@@ -182,12 +200,14 @@ export class PartnerCoordinator {
         lastSequence: input.lastSequence,
         finish: (event) => {
           cleanup();
+          this.touchSession(input.sessionId);
           resolve(this.eventResponse(event));
         },
       };
       const timeout = window.setTimeout(() => waiter.finish(null), waitMs);
       const onAbort = () => {
         cleanup();
+        this.disconnectSession(input.sessionId);
         reject(new DOMException('Tool execution was cancelled.', 'AbortError'));
       };
       const cleanup = () => {
@@ -210,6 +230,11 @@ export class PartnerCoordinator {
       heartbeat: event === null,
       observation: this.createObservation(),
     };
+  }
+
+  private disconnectSession(sessionId: string): void {
+    if (!this.options.store.disconnectPartner(sessionId).ok) return;
+    this.lastPartnerSeenAt = null;
   }
 
   private createObservation() {

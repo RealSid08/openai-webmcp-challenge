@@ -50,8 +50,8 @@ function asStringArray(input: Record<string, unknown>, key: string): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 }
 
-function hasSession(store: MissionStore, sessionId: string): boolean {
-  return Boolean(sessionId) && store.getSnapshot().partner.sessionId === sessionId;
+function hasSession(coordinator: PartnerCoordinator, sessionId: string): boolean {
+  return coordinator.touchSession(sessionId);
 }
 
 export function createWebMcpTools({
@@ -178,7 +178,7 @@ export function createWebMcpTools({
         ['sessionId', 'targetId', 'radioLine'],
       ),
       execute: async (input) => {
-        if (!hasSession(store, asString(input, 'sessionId'))) {
+        if (!hasSession(coordinator, asString(input, 'sessionId'))) {
           return { ok: false, reason: 'INVALID_SESSION' };
         }
         if (store.getSnapshot().section !== 'CHASE') {
@@ -212,7 +212,7 @@ export function createWebMcpTools({
       ),
       annotations: { untrustedContentHint: true },
       execute: async (input) => {
-        if (!hasSession(store, asString(input, 'sessionId'))) {
+        if (!hasSession(coordinator, asString(input, 'sessionId'))) {
           return { ok: false, reason: 'INVALID_SESSION' };
         }
         const event = coordinator.publish({
@@ -258,7 +258,7 @@ export function createWebMcpTools({
         ['sessionId', 'evidenceEventId', 'lesson', 'affectedTactic'],
       ),
       execute: async (input) => {
-        if (!hasSession(store, asString(input, 'sessionId'))) {
+        if (!hasSession(coordinator, asString(input, 'sessionId'))) {
           return { ok: false, reason: 'INVALID_SESSION' };
         }
         const result = memory.recordLesson({

@@ -24,7 +24,8 @@ export type MissionFailure =
       cause: 'ENEMY_FIRE' | 'EXPLOSION';
     }
   | { code: 'MISSION_COMPROMISED'; cause: string }
-  | { code: 'VEHICLE_DESTROYED'; cause: 'PURSUER_FIRE' | 'COLLISION' };
+  | { code: 'VEHICLE_DESTROYED'; cause: 'PURSUER_FIRE' | 'COLLISION' }
+  | { code: 'PARTNER_DISCONNECTED'; cause: 'AGENT_DISCONNECTED' };
 
 export type SwitchingState =
   | { state: 'READY' }
@@ -170,6 +171,71 @@ export class MissionStore {
       `${name.trim() || 'Codex'} joined the page session.`,
     );
     return { ok: true, sessionId, alreadyJoined: false };
+  }
+
+  disconnectPartner(sessionId: string): CommandResult {
+    if (!sessionId || this.snapshot.partner.sessionId !== sessionId) {
+      return { ok: false, reason: 'INVALID_SESSION' };
+    }
+
+    const partner = { online: false, name: null, sessionId: null };
+    const partnerName = this.snapshot.partner.name ?? 'The agent partner';
+    if (this.snapshot.phase === 'MISSION') {
+      this.commit(
+        {
+          ...this.snapshot,
+          partner,
+          phase: 'FAILURE',
+          objective: 'PARTNER CONNECTION LOST',
+          failure: { code: 'PARTNER_DISCONNECTED', cause: 'AGENT_DISCONNECTED' },
+          requiredDecision: null,
+          switching: { state: 'READY' },
+        },
+        'PARTNER_DISCONNECTED',
+        `${partnerName} disconnected during the active attempt.`,
+        true,
+      );
+      return { ok: true };
+    }
+
+    if (this.snapshot.phase === 'TITLE') {
+      this.runStartedAt = null;
+      this.runEndedAt = null;
+      this.pausedAt = null;
+      this.pausedDurationMs = 0;
+      this.commit(
+        {
+          ...this.snapshot,
+          partner,
+          phase: 'PAIRING',
+          runId: null,
+          section: null,
+          checkpoint: null,
+          objective: 'PAIR WITH YOUR PARTNER',
+          failure: null,
+          paused: false,
+          requiredDecision: null,
+          switching: { state: 'READY' },
+          vehicle: null,
+          bomb: { state: 'IDLE', safeDetonation: null },
+        },
+        'PARTNER_DISCONNECTED',
+        `${partnerName} disconnected before the attempt began.`,
+      );
+      return { ok: true };
+    }
+
+    this.commit(
+      {
+        ...this.snapshot,
+        partner,
+        objective:
+          this.snapshot.phase === 'PAIRING' ? 'PAIR WITH YOUR PARTNER' : this.snapshot.objective,
+      },
+      'PARTNER_DISCONNECTED',
+      `${partnerName} disconnected from the page session.`,
+    );
+    return { ok: true };
   }
 
   startMission(): CommandResult {

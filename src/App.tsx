@@ -132,6 +132,13 @@ function failureCopy(failure: MissionFailure): {
       attribution: failure.cause === 'COLLISION' ? 'HUMAN' : 'ENVIRONMENT',
     };
   }
+  if (failure.code === 'PARTNER_DISCONNECTED') {
+    return {
+      code: failure.code,
+      cause: 'The agent partner stopped responding, so the shared mission cannot continue.',
+      attribution: 'AGENT',
+    };
+  }
   return {
     code: failure.code,
     cause:
@@ -192,6 +199,7 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
   useEffect(() => {
     const timer = window.setInterval(
       () => {
+        services.coordinator.tickPresence();
         services.store.tick();
         forceClockRender((revision) => (revision + 1) % 10_000);
       },
@@ -243,7 +251,13 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
 
   useEffect(() => {
     if (snapshot.phase !== 'FAILURE') return;
-    const restore = window.setTimeout(() => services.store.restoreCheckpoint(), 2_000);
+    const restore = window.setTimeout(() => {
+      if (services.store.getSnapshot().failure?.code === 'PARTNER_DISCONNECTED') {
+        services.store.returnToPairing();
+      } else {
+        services.store.restoreCheckpoint();
+      }
+    }, 2_000);
     return () => window.clearTimeout(restore);
   }, [services, snapshot.phase]);
 
@@ -498,7 +512,9 @@ export function App({ services, compatibility = 'AUTO' }: AppProps) {
       {snapshot.phase === 'FAILURE' && snapshot.failure ? (
         <FailureScreen
           {...failureCopy(snapshot.failure)}
-          checkpointLabel={checkpointLabel}
+          checkpointLabel={
+            snapshot.failure.code === 'PARTNER_DISCONNECTED' ? 'secure pairing' : checkpointLabel
+          }
           restoreDurationMs={2_000}
         />
       ) : null}

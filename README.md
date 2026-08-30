@@ -39,7 +39,7 @@ On first entering the facility, a short interactive training sequence teaches mo
 | Input | Action |
 | --- | --- |
 | `W A S D` | Move on foot; steer while driving |
-| Mouse | Look after selecting `TAKE CONTROL`; lockless edge turning activates seamlessly if pointer capture is denied |
+| Mouse | Look after selecting `TAKE CONTROL`; when pointer capture is denied, hold the cursor at a canvas edge for continuous lockless turning |
 | Right mouse | Aim |
 | Left mouse | Fire |
 | `Shift` | Toggle sprint/walk; sprint is enabled by default |
@@ -110,7 +110,7 @@ join_heist
   → continue until completion or return to pairing
 ```
 
-Event waits are bounded and abortable, so one wait can return a heartbeat without ending the agent's responsibility. Session IDs, decision IDs, allowed action enums, and deadlines are checked against the same mission store used by the human UI and Babylon runtime. Radio messages can be sent before the human starts and appear as diegetic subtitles in the pairing screen as well as during the mission.
+Event waits are bounded and abortable, so one wait can return a heartbeat without ending the agent's responsibility. Each authenticated call renews a 30-second presence lease; an aborted wait or expired lease invalidates the abandoned session and locks pairing again. Disconnecting during an attempt ends it and returns the human to secure pairing instead of silently substituting a scripted partner. Session IDs, decision IDs, allowed action enums, and deadlines are checked against the same mission store used by the human UI and Babylon runtime. Radio messages can be sent before the human starts and appear as diegetic subtitles in the pairing screen as well as during the mission.
 
 ## Architecture
 
@@ -151,7 +151,7 @@ npm run build
 
 The Playwright journeys install a test-only WebMCP host during a test-mode production build. They call the real registered tool handlers and cover pairing, the direct partner brief, pre-mission radio subtitles, title, Babylon startup, interactive training, active enemy combat, pause/memory accessibility, the bomb gate, chase, failure restore, lesson recording, lesson-linked adaptation, and debrief. The test driver is compiled only in Vite's `test` mode and is absent from a normal production build.
 
-The browser suite also installs a test-only pointer-lock host shim because headless Chromium cannot capture the operating-system pointer. A separate denial journey proves that rejection activates seamless lockless look, preserves normal firing, and does not freeze the simulation. Controller mappings, dead zones, input switching, default sprint, and controller-only aim assist have deterministic automated coverage.
+The browser suite also installs a test-only pointer-lock host shim because headless Chromium cannot capture the operating-system pointer. A separate denial journey proves that rejection activates seamless lockless look, preserves normal firing, and does not freeze the simulation. The main WebMCP journey aborts an authenticated agent wait and proves the old session is invalidated, the disconnect card appears, and Start locks again. Controller mappings, dead zones, input switching, default sprint, and controller-only aim assist have deterministic automated coverage.
 
 Automated verification cannot establish physical mouse or controller feel, and no compatible controller was connected to the development Mac during this release gate. A real supported-host WebMCP session and physical input play-through therefore remain explicit pre-submission checks.
 
