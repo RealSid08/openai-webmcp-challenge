@@ -155,7 +155,7 @@ The Playwright journeys install a test-only WebMCP host during a test-mode produ
 
 The browser suite also installs a test-only pointer-lock host shim because headless Chromium cannot capture the operating-system pointer. A separate denial journey proves that rejection activates seamless lockless look, preserves normal firing, and does not freeze the simulation. The main WebMCP journey aborts an authenticated agent wait and proves the old session is invalidated, the disconnect card appears, and Start locks again. Controller mappings, dead zones, input switching, default sprint, and controller-only aim assist have deterministic automated coverage.
 
-Automated verification cannot establish physical mouse or controller feel, and no compatible controller was connected to the development Mac during this release gate. A real supported-host WebMCP session and physical input play-through therefore remain explicit pre-submission checks.
+Automated verification cannot establish physical mouse or controller feel, and no compatible controller was connected to the development Mac during this release gate. A physical input play-through therefore remains an explicit pre-submission check. The WebMCP tools have been tested end to end with Codex as the agent.
 
 ## Local data and safety
 
@@ -176,7 +176,7 @@ npm run build
 
 The repository includes a Netlify/Cloudflare-style `public/_headers` file and `vercel.json` with equivalent security headers. WebMCP capability is feature-detected, so unsupported browsers show the waiting experience rather than crashing.
 
-No live deployment, public repository, or supported-host test is claimed by this local checkout. Those are explicit pre-submission steps.
+No live deployment is claimed by this checkout. That is an explicit pre-submission step.
 
 ## License
 

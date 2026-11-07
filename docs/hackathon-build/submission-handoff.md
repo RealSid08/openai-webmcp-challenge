@@ -2,7 +2,7 @@
 
 ## Release status
 
-The local production build is complete and verified. Nothing has been submitted to Devpost. A public repository, public live URL, public demo video, and real supported-host WebMCP test are still required before submission.
+The local production build is complete and verified. Nothing has been submitted to Devpost. A public repository, public live URL and public demo video are still required before submission. The WebMCP tools have been tested end to end with Codex as the agent.
 
 Official Devpost requirements, judging criteria, key dates, and announcements were refreshed through the Devpost Hackathons plugin on 2026-08-28. Submissions close at `2026-09-03T20:00:00Z` (`2026-09-04 06:00` Australia/Melbourne). There were no host announcements at the time of the check.
 
@@ -61,7 +61,7 @@ The event wait is bounded and abortable. Session IDs, decision IDs, actions, dea
 - Pointer-lock request/event wiring and deliberate denial recovery, movement, default sprint, right-mouse aim, firing/ammunition, active enemy combat, interactive training, minimap states, and free switching are covered through a test-only browser host shim.
 - Xbox/PlayStation mappings, dead zones, input switching, controller-only aim assistance, audio intensity, grounded movement, enemy tactics, and view-model poses have deterministic unit coverage.
 - Chrome, Zen, and Safari are installed on the development machine. No supported controller was connected during the release gate, so physical controller feel is not claimed.
-- Physical mouse/controller play and a real ChatGPT/Chrome WebMCP host still require final human QA after deployment.
+- All ten tools were tested end to end with Codex as the agent. Physical mouse/controller play still requires final human QA after deployment.
 - Production build: passing. Its lazy Babylon runtime chunk is approximately 1.0 MB minified / 252 KB gzip and produces Vite's non-blocking large-chunk advisory.
 
 ## Screenshot shortlist
@@ -90,7 +90,7 @@ Record real tool calls and the live game in one continuous supported-host sessio
 ## Candid judging alignment
 
 - **WebMCP Leverage:** strong. The agent owns a necessary character through a non-trivial observation/action/memory loop rather than exposing convenience commands.
-- **Execution:** strong locally. The slice has pairing, title, gameplay, failure, recovery, persistence, audio, and debrief, but this score is not secure until the public deployment and real host work.
+- **Execution:** strong locally. The slice has pairing, title, gameplay, failure, recovery, persistence, audio, and debrief, but this score is not secure until the public deployment.
 - **Creativity & Ambition:** strong. Perspective ownership and inspectable partner adaptation are unusual uses of WebMCP.
 - **Potential Impact:** the weakest argument if described only as “a cool game.” Frame the credible audience as game designers and agent developers exploring understandable, failure-capable companions, and demonstrate why structured tools make those companions more trustworthy than screen-driving or hidden behavior trees.
 
@@ -98,7 +98,6 @@ Record real tool calls and the live game in one continuous supported-host sessio
 
 - Create and push a public GitHub/GitLab/Bitbucket repository; confirm the MIT license is detected at the top of the repo.
 - Deploy the normal production build to a public HTTPS URL.
-- Test all ten tools through ChatGPT’s in-app browser or Chrome with WebMCP enabled and record the exact tested client(s).
 - Run one physical keyboard/external-mouse play-through, one Xbox or PlayStation controller play-through, and one failure → lesson → changed-action loop on the deployed build.
 - Record and publish the under-three-minute YouTube demo with audio.
 - Choose the final thumbnail and public screenshots.
